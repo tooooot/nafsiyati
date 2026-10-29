@@ -29,6 +29,7 @@ services:
     env_file: .env
     volumes:
       - ./api.js:/app/api.js:ro
+      - ./staff.js:/app/staff.js:ro
       - ./data:/app/data
     networks: [n8n_default]
     labels:

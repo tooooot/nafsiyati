@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../data/api.dart';
 import '../theme.dart';
-import 'admin.dart';
+import 'staff_screens.dart';
+import 'wallet.dart';
 import 'therapists.dart';
 import 'welcome.dart';
 
@@ -21,8 +22,19 @@ class AccountScreen extends StatelessWidget {
               Center(child: Text('${u?['name'] ?? ''}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800))),
               Center(child: Text('${u?['email'] ?? ''}', style: const TextStyle(color: C.grey, fontSize: 13))),
               const SizedBox(height: 24),
-              if (u?['isAdmin'] == true) ...[
+              if (((u?['perms'] as List?) ?? const []).isNotEmpty) ...[
                 Container(
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+                  child: ListTile(leading: const Icon(Icons.dashboard_customize_outlined), title: const Text('لوحات العمل'), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StaffHub(u!['perms'] as List)))),
+                ),
+                const SizedBox(height: 12),
+              ],
+              Container(
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+                child: ListTile(leading: const Icon(Icons.account_balance_wallet_outlined), title: const Text('محفظتي'), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WalletScreen()))),
+              ),
+              const SizedBox(height: 12),
+              Container(
                   decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
                   child: ListTile(leading: const Icon(Icons.verified_user_outlined), title: const Text('إدارة المعالجين'), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminScreen()))),
                 ),

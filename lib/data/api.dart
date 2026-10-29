@@ -28,6 +28,9 @@ class Api {
   static Future<void> markQuizDone() async {
     quizDone = true;
     await (await SharedPreferences.getInstance()).setBool('quiz', true);
+    try {
+      await post('/me/quiz');
+    } catch (_) {}
   }
 
   static Future<void> save({String? newToken, String? newRole}) async {

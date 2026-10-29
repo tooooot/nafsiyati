@@ -15,19 +15,20 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   late Future<Therapist> f = _load();
   String? slotId;
+  final voucher = TextEditingController();
   bool busy = false;
   Future<Therapist> _load() async => Therapist.fromJson(await Api.get('/therapists/${widget.id}'));
 
   Future<void> _book(Therapist t) async {
     setState(() => busy = true);
     try {
-      final r = await Api.post('/appointments', {'slotId': slotId});
+      final r = await Api.post('/appointments', {'slotId': slotId, if (voucher.text.trim().isNotEmpty) 'voucher': voucher.text.trim()});
       if (!mounted) return;
       await showDialog(
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('تم حجز الموعد'),
-          content: Text('${t.name}\n${fmtTime(DateTime.parse(r['start']))}\nالدفع عند الجلسة في هذه النسخة التجريبية.\nستجد الموعد في «جلساتي».'),
+          content: Text('${t.name}\n${fmtTime(DateTime.parse(r['start']))}\nالسعر: ${r['priceDzd']} دج${(r['discountDzd'] ?? 0) > 0 ? ' (بعد خصم ${r['discountDzd']} دج)' : ''}\nالدفع يُؤكَّد من الإدارة في هذه النسخة التجريبية.\nستجد الموعد في «جلساتي».'),
           actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('حسناً'))],
         ),
       );
@@ -85,6 +86,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 16),
               Text('${t.priceDzd} دج / الجلسة', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
               const SizedBox(height: 12),
+              Padding(padding: const EdgeInsets.only(bottom: 10), child: TextField(controller: voucher, textCapitalization: TextCapitalization.characters, decoration: const InputDecoration(hintText: 'عندك قسيمة خصم؟ اكتب الكود', filled: true, fillColor: Colors.white))),
               ElevatedButton(onPressed: slotId == null || busy ? null : () => _book(t), child: Text(busy ? 'جارٍ الحجز…' : 'احجز الجلسة')),
             ]);
           },

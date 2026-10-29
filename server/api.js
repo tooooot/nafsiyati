@@ -1,6 +1,7 @@
 // خادم نفسيتي (بلا اعتماديات، node:sqlite). الدخول والأدوار من wardyat-core؛ هنا المجال: معالجون، مواعيد، حجز، فيديو.
 const http = require('http');
 const crypto = require('crypto');
+const staffMod = require('./staff.js');
 const { DatabaseSync } = require('node:sqlite');
 
 const E = (code, msg) => Object.assign(new Error(msg), { code });
@@ -22,12 +23,12 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
     create index if not exists ix_apt_p on appointments(patient_id);
     create index if not exists ix_apt_t on appointments(therapist_id);
   `);
+  staffMod.schema(db);
   const q = (s, ...a) => db.prepare(s).get(...a);
   const all = (s, ...a) => db.prepare(s).all(...a);
   const run = (s, ...a) => db.prepare(s).run(...a);
 
   const th = (r) => r && ({ id: r.user_id, name: r.name, title: r.title, bio: r.bio, topics: JSON.parse(r.topics || '[]'), languages: JSON.parse(r.languages || '[]'), priceDzd: r.price_dzd, status: r.status });
-  const isAdmin = (u) => u.roles.includes('admin') || u.roles.includes('owner');
 
   function livekitToken({ room, identity, name, ttl = 1800 }) {
     const now = Math.floor(Date.now() / 1000), head = b64({ alg: 'HS256', typ: 'JWT' });
@@ -40,6 +41,8 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
 
   const routes = [];
   const R = (m, p, fn) => routes.push({ m, re: new RegExp('^' + p.replace(/:(\w+)/g, '(?<$1>[^/]+)') + '$'), fn });
+
+  const S = staffMod.register({ R, q, all, run, E, uid, iso });
 
   // ---- عام ----
   R('GET', '/api/health', async () => ({ ok: 1 }));
@@ -66,7 +69,7 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
     return { redirect: siteUrl + '/#' + (t && !c.body.error ? 'apple_id_token=' + encodeURIComponent(t) + '&' : '') + 'state=' + st };
   });
 
-  R('GET', '/api/me', async (c) => { c.need(); const t = q('select * from therapists where user_id=?', c.user.id); return { user: { id: c.user.id, name: c.user.name, email: c.user.email, isAdmin: isAdmin(c.user) }, therapist: t ? { ...th(t), licenseNo: t.license_no } : null }; });
+  R('GET', '/api/me', async (c) => { c.need(); const t = q('select * from therapists where user_id=?', c.user.id); return { user: { id: c.user.id, name: c.user.name, email: c.user.email, isAdmin: S.can(c.user, 'therapists'), perms: S.perms(c.user) }, therapist: t ? { ...th(t), licenseNo: t.license_no } : null }; });
 
   // ---- المعالج ----
   R('POST', '/api/therapist/apply', async (c) => {
@@ -94,15 +97,18 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
     const t = q("select * from therapists where user_id=? and status='verified'", s.therapist_id); if (!t) throw E(404, 'المعالج غير متاح');
     if (t.user_id === c.user.id) throw E(400, 'لا يمكنك حجز موعد عند نفسك');
     if (new Date(s.start) < new Date()) throw E(400, 'الموعد انتهى');
+    let price = t.price_dzd, discount = 0, vcode = null, v = null;
+    if (c.body.voucher) { v = S.voucherFor(c.body.voucher, c.user.id); vcode = v.code; discount = Math.round(price * v.percent / 100); price -= discount; }
     const id = uid();
     db.exec('begin immediate');
     try {
       const r = run('update slots set booked=1 where id=? and booked=0', s.id);
       if (!r.changes) throw E(409, 'الموعد حُجز للتو، اختر موعداً آخر');
-      run('insert into appointments(id,therapist_id,patient_id,patient_name,slot_id,start,minutes,price_dzd,created) values(?,?,?,?,?,?,?,?,?)', id, s.therapist_id, c.user.id, String(c.user.name || '').slice(0, 60), s.id, s.start, s.minutes, t.price_dzd, iso());
+      run('insert into appointments(id,therapist_id,patient_id,patient_name,slot_id,start,minutes,price_dzd,created,voucher,discount_dzd) values(?,?,?,?,?,?,?,?,?,?,?)', id, s.therapist_id, c.user.id, String(c.user.name || '').slice(0, 60), s.id, s.start, s.minutes, price, iso(), vcode, discount);
+      if (v) { const r2 = run('update vouchers set used=used+1 where code=? and (max_uses=0 or used<max_uses)', v.code); if (!r2.changes) throw E(410, 'استُنفدت القسيمة'); run('insert into voucher_use values(?,?,?)', v.code, c.user.id, id); }
       db.exec('commit');
     } catch (e) { db.exec('rollback'); throw e; }
-    return { id, start: s.start, minutes: s.minutes, priceDzd: t.price_dzd, therapist: th(t).name };
+    return { id, start: s.start, minutes: s.minutes, priceDzd: price, discountDzd: discount, therapist: th(t).name };
   });
   const aptOut = (a, viewer) => ({ id: a.id, start: a.start, minutes: a.minutes, status: a.status, priceDzd: a.price_dzd, paid: !!a.paid, therapistId: a.therapist_id, therapist: (q('select name from therapists where user_id=?', a.therapist_id) || {}).name, ...(viewer === a.therapist_id ? { patient: a.patient_name } : {}) });
   R('GET', '/api/appointments', async (c) => { c.need(); return all('select * from appointments where patient_id=? or therapist_id=? order by start desc limit 200', c.user.id, c.user.id).map((a) => aptOut(a, c.user.id)); });
@@ -110,8 +116,11 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
     c.need(); const a = q('select * from appointments where id=?', c.p.id);
     if (!a || (a.patient_id !== c.user.id && a.therapist_id !== c.user.id)) throw E(404, 'غير موجود');
     if (a.status !== 'booked') throw E(409, 'لا يمكن إلغاء هذا الموعد');
+    if (a.paid) throw E(409, 'الموعد مدفوع؛ تواصل مع الدعم لإلغائه');
     if (new Date(a.start) - Date.now() < 3600e3 && a.patient_id === c.user.id) throw E(409, 'الإلغاء قبل الموعد بأقل من ساعة غير متاح');
-    run("update appointments set status='cancelled' where id=?", a.id); run('update slots set booked=0 where id=?', a.slot_id); return { ok: 1 };
+    run("update appointments set status='cancelled' where id=?", a.id); run('update slots set booked=0 where id=?', a.slot_id);
+    if (a.voucher) { run('delete from voucher_use where code=? and appointment_id=?', a.voucher, a.id); run('update vouchers set used=max(used-1,0) where code=?', a.voucher); }
+    return { ok: 1 };
   });
 
   // ---- الفيديو: توكن مربوط بالموعد (نافذة: قبله 10 دقائق حتى بعد نهايته 10 دقائق) ----
@@ -135,8 +144,8 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
   R('PUT', '/api/appointments/:id/notes', async (c) => { c.need(); const a = q('select * from appointments where id=? and therapist_id=?', c.p.id, c.user.id); if (!a) throw E(404, 'غير موجود'); run('insert into notes values(?,?,?,?) on conflict(appointment_id) do update set body=excluded.body, updated=excluded.updated', a.id, c.user.id, String(c.body.body || '').slice(0, 8000), iso()); return { ok: 1 }; });
 
   // ---- الإدارة: توثيق المعالجين ----
-  R('GET', '/api/admin/therapists', async (c) => { c.need(); if (!isAdmin(c.user)) throw E(403, 'للمدير فقط'); return all('select * from therapists where status=? order by created', String(c.query.status || 'pending')).map((t) => ({ ...th(t), licenseNo: t.license_no, created: t.created })); });
-  R('POST', '/api/admin/therapists/:id/status', async (c) => { c.need(); if (!isAdmin(c.user)) throw E(403, 'للمدير فقط'); const st = String(c.body.status); if (!['verified', 'rejected', 'pending'].includes(st)) throw E(400, 'حالة غير صالحة'); const r = run('update therapists set status=? where user_id=?', st, c.p.id); if (!r.changes) throw E(404, 'غير موجود'); return { ok: 1 }; });
+  R('GET', '/api/admin/therapists', async (c) => { c.need(); if (!S.can(c.user, 'therapists')) throw E(403, 'للمدير فقط'); return all('select * from therapists where status=? order by created', String(c.query.status || 'pending')).map((t) => ({ ...th(t), licenseNo: t.license_no, created: t.created })); });
+  R('POST', '/api/admin/therapists/:id/status', async (c) => { c.need(); if (!S.can(c.user, 'therapists')) throw E(403, 'للمدير فقط'); const st = String(c.body.status); if (!['verified', 'rejected', 'pending'].includes(st)) throw E(400, 'حالة غير صالحة'); const r = run('update therapists set status=? where user_id=?', st, c.p.id); if (!r.changes) throw E(404, 'غير موجود'); return { ok: 1 }; });
 
   const send = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(obj)); };
   const server = http.createServer((req, res) => {
@@ -152,6 +161,10 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
         let body = {}; if (raw) { if (/x-www-form-urlencoded/.test(req.headers['content-type'] || '')) body = Object.fromEntries(new URLSearchParams(raw)); else { try { body = JSON.parse(raw); } catch { throw E(400, 'JSON غير صالح'); } } }
         const tok = (req.headers.authorization || '').replace(/^Bearer /, '');
         const user = tok ? await getUser(tok) : null;
+        if (user) {
+          run('insert into seen_users(id,email,name,created,last_seen) values(?,?,?,?,?) on conflict(id) do update set email=excluded.email,name=excluded.name,last_seen=excluded.last_seen', user.id, String(user.email || '').toLowerCase(), String(user.name || '').slice(0, 80), iso(), iso());
+          if (q('select suspended from seen_users where id=?', user.id).suspended) throw E(403, 'الحساب موقوف');
+        }
         const c = { p, body, query: Object.fromEntries(u.searchParams), user, need() { if (!user) throw E(401, 'سجّل الدخول أولاً'); } };
         const out = await hit.fn(c);
         if (out && out.redirect) { res.writeHead(302, { Location: out.redirect, 'Cache-Control': 'no-store' }); return res.end(); }

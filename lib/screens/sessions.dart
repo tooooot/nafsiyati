@@ -3,6 +3,7 @@ import '../data/api.dart';
 import '../data/models.dart';
 import '../theme.dart';
 import 'call.dart';
+import 'notes.dart';
 import 'therapists.dart';
 
 /// جلساتي: مواعيد المريض أو المعالج مع زر الدخول (يفتح قبل البدء بعشر دقائق).
@@ -84,6 +85,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
                       Row(children: [
                         Expanded(child: ElevatedButton.icon(onPressed: a.joinable ? () => _join(a) : null, icon: const Icon(Icons.videocam), label: Text(a.joinable ? 'ادخل الجلسة' : 'تُفتح قبل الموعد بـ10 دقائق'))),
                         const SizedBox(width: 8),
+                        if (widget.asTherapist) ...[OutlinedButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => NotesScreen(a.id, a.patient ?? 'مريض'))), child: const Text('ملاحظات')), const SizedBox(width: 8)],
                         OutlinedButton(onPressed: () => _cancel(a), child: const Text('إلغاء')),
                       ]),
                     ]),
