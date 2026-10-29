@@ -1,0 +1,8 @@
+build/
+.dart_tool/
+android/
+ios/
+web/
+.flutter-plugins*
+*.iml
+.env
