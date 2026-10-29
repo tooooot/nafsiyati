@@ -83,11 +83,11 @@ class _CallScreenState extends State<CallScreen> {
           Positioned(
             bottom: 24, left: 0, right: 0,
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              _btn(mic ? Icons.mic : Icons.mic_off, () async { mic = !mic; await room.localParticipant?.setMicrophoneEnabled(mic); setState(() {}); }, off: !mic),
+              _btn(mic ? Icons.mic : Icons.mic_off, mic ? 'الميكروفون' : 'مكتوم', () async { mic = !mic; await room.localParticipant?.setMicrophoneEnabled(mic); setState(() {}); }, off: !mic),
               const SizedBox(width: 18),
-              _btn(cam ? Icons.videocam : Icons.videocam_off, () async { cam = !cam; await room.localParticipant?.setCameraEnabled(cam); setState(() {}); }, off: !cam),
+              _btn(cam ? Icons.videocam : Icons.videocam_off, cam ? 'الكاميرا' : 'متوقفة', () async { cam = !cam; await room.localParticipant?.setCameraEnabled(cam); setState(() {}); }, off: !cam),
               const SizedBox(width: 18),
-              _btn(Icons.call_end, () => Navigator.pop(context), red: true),
+              _btn(Icons.call_end, 'إنهاء', () => Navigator.pop(context), red: true),
             ]),
           ),
         ]),
@@ -95,12 +95,16 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 
-  Widget _btn(IconData i, VoidCallback f, {bool off = false, bool red = false}) => InkResponse(
+  Widget _btn(IconData i, String label, VoidCallback f, {bool off = false, bool red = false}) => InkResponse(
         onTap: f,
-        child: Container(
-          width: 56, height: 56,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: red ? Colors.red : (off ? Colors.white24 : Colors.white12)),
-          child: Icon(i, color: Colors.white),
-        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: red ? Colors.red : (off ? Colors.white24 : Colors.white12)),
+            child: Icon(i, color: Colors.white),
+          ),
+          const SizedBox(height: 6),
+          Text(label, style: const TextStyle(color: Colors.white, fontSize: 12)),
+        ]),
       );
 }
