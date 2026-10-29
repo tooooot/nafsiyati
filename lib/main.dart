@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'theme.dart';
 import 'screens/welcome.dart';
 
@@ -12,6 +13,7 @@ class NafsiyatiApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: buildTheme(),
         locale: const Locale('ar'),
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         supportedLocales: const [Locale('ar')],
         builder: (c, w) => Directionality(textDirection: TextDirection.rtl, child: w!),
         home: const WelcomeScreen(),
