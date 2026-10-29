@@ -5,7 +5,13 @@ ARGS = ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', 
 QUIZ = ['نعم', 'امرأة', 'أقل من 30', 'نعم', 'داعم ومشجّع', 'بالتعاطف']
 
 def btn(pg, name, exact=False):
-    pg.get_by_role('button', name=name, exact=exact).first.click(timeout=20000)
+    # أزرار Flutter قد تظهر كـ button أو tab في شجرة الوصول
+    loc = pg.get_by_role('button', name=name, exact=exact)
+    if loc.count() == 0:
+        loc = pg.get_by_role('tab', name=name, exact=exact)
+    if loc.count() == 0:
+        loc = pg.locator('flt-semantics').filter(has_text=name)
+    loc.first.click(timeout=20000)
     pg.wait_for_timeout(900)
 
 def run():
