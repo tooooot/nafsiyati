@@ -35,12 +35,6 @@ class AccountScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Container(
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
-                  child: ListTile(leading: const Icon(Icons.verified_user_outlined), title: const Text('إدارة المعالجين'), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminScreen()))),
-                ),
-                const SizedBox(height: 12),
-              ],
-              Container(
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
                 child: ListTile(leading: const Icon(Icons.privacy_tip_outlined), title: const Text('سياسة الخصوصية'), trailing: const Icon(Icons.chevron_left), onTap: () {}),
               ),
