@@ -16,6 +16,7 @@ jobs:
           cache: true
       - name: Generate platform folders
         run: flutter create --platforms=web,android --project-name nafsiyati --org net.wardyat .
+      - run: rm -rf test
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos --no-fatal-warnings
       - run: flutter build web --release --base-href /
