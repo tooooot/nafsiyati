@@ -1,0 +1,18 @@
+name: Admin UI
+on: workflow_dispatch
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install playwright && playwright install --with-deps chromium
+      - run: python e2e/admin_ui.py
+        env:
+          DEV_ADMIN: ${{ secrets.DEV_ADMIN }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: admin-shots
+          path: "*.png"
+          retention-days: 3
