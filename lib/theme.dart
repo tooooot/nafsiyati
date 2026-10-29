@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// ألوان مأخوذة من تصميم Figma المعتمد (2026-10-28).
 class C {
@@ -22,14 +21,14 @@ ThemeData buildTheme() {
     scaffoldBackgroundColor: C.bg,
   );
   return base.copyWith(
-    textTheme: GoogleFonts.tajawalTextTheme(base.textTheme).apply(bodyColor: C.ink, displayColor: C.ink),
+    textTheme: base.textTheme.apply(fontFamily: 'Tajawal', bodyColor: C.ink, displayColor: C.ink),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: C.green,
         foregroundColor: Colors.white,
         minimumSize: const Size.fromHeight(50),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        textStyle: GoogleFonts.tajawal(fontSize: 16, fontWeight: FontWeight.w700),
+        textStyle: const TextStyle(fontFamily: 'Tajawal', fontSize: 16, fontWeight: FontWeight.w700),
       ),
     ),
   );

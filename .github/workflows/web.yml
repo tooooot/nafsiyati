@@ -19,7 +19,7 @@ jobs:
       - run: rm -rf test
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos --no-fatal-warnings
-      - run: flutter build web --release --base-href / --dart-define=DEV_LOGIN=true
+      - run: flutter build web --release --base-href / --no-web-resources-cdn --dart-define=DEV_LOGIN=true
       - uses: actions/upload-artifact@v4
         with:
           name: nafsiyati-web
