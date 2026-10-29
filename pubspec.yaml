@@ -10,6 +10,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   http: ^1.2.2
+  web: ^1.1.0
   shared_preferences: ^2.3.2
   livekit_client: ^2.3.0
 dev_dependencies:

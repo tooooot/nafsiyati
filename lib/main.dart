@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'data/api.dart';
+import 'data/oauth.dart';
 import 'screens/home.dart';
 import 'screens/quiz.dart';
 import 'screens/welcome.dart';
@@ -9,7 +10,13 @@ import 'theme.dart';
 /// دخول المراجعة بتوكن جلسة عبر ?dev=…&role=… (يُفعَّل ببناء المراجعة فقط، ويُزال عند تفعيل الدخول الحقيقي).
 const devLogin = bool.fromEnvironment('DEV_LOGIN');
 
-void main() => runApp(const NafsiyatiApp());
+Map<String, String> authFragment = {};
+String? loginError; // آخر خطأ دخول، يُعرض في شاشة الدخول
+
+void main() {
+  authFragment = takeAuthFragment(); // قبل runApp: يمسح # من العنوان
+  runApp(const NafsiyatiApp());
+}
 
 class NafsiyatiApp extends StatelessWidget {
   const NafsiyatiApp({super.key});
@@ -40,6 +47,17 @@ class _BootState extends State<Boot> {
     if (devLogin) {
       final q = Uri.base.queryParameters;
       if (q['dev'] != null) await Api.save(newToken: q['dev'], newRole: q['role'] == 'therapist' ? 'therapist' : 'patient');
+    }
+    final f = authFragment;
+    if (f['id_token'] != null || f['apple_id_token'] != null) {
+      try {
+        final google = f['id_token'] != null;
+        final r = await Api.post(google ? '/auth/google' : '/auth/apple', {'id_token': google ? f['id_token'] : f['apple_id_token']});
+        await Api.save(newToken: r['token'] as String, newRole: f['state'] == 'therapist' ? 'therapist' : 'patient');
+      } on ApiError catch (e) {
+        loginError = e.message;
+      }
+      authFragment = {};
     }
     if (Api.token == null) return const WelcomeScreen();
     try {

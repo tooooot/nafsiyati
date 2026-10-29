@@ -10,7 +10,7 @@ const users = {
 };
 let base, srv;
 test.before(async () => {
-  const { server } = createApp({ getUser: async (t) => users[t] || null, lk: { key: 'k', secret: 's', url: 'wss://x', demo: true } });
+  const { server } = createApp({ getUser: async (t) => users[t] || null, lk: { key: 'k', secret: 's', url: 'wss://x', demo: true }, social: async (prov, t) => (t === 'good-token-good-token-1' ? { token: 'sess-' + prov, user: { id: 'u' } } : null) });
   srv = server; await new Promise((r) => server.listen(0, r)); base = 'http://127.0.0.1:' + server.address().port;
 });
 test.after(() => srv.close());
@@ -64,4 +64,16 @@ test('نافذة الفيديو: داخل 10 دقائق يُصدر توكناً�
 test('غرف التجربة: قالب الاسم فقط', async () => {
   assert.equal((await call('POST', '/api/video/token', null, { room: 'demo-abcd12' })).s, 200);
   assert.equal((await call('POST', '/api/video/token', null, { room: 'apt-abc' })).s, 403);
+});
+
+test('الدخول: يمرّر الرمز للنواة ويرفض الباطل، وآبل تُحوَّل للتطبيق', async () => {
+  assert.equal((await call('POST', '/api/auth/google', null, { id_token: 'x' })).s, 400);
+  assert.equal((await call('POST', '/api/auth/google', null, { id_token: 'bad-token-bad-token-bad' })).s, 401);
+  const ok = await call('POST', '/api/auth/apple', null, { id_token: 'good-token-good-token-1' });
+  assert.equal(ok.j.token, 'sess-apple');
+  const r = await fetch(base + '/api/auth/apple/callback', { method: 'POST', redirect: 'manual', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'id_token=abc.def&state=therapist' });
+  assert.equal(r.status, 302);
+  assert.equal(r.headers.get('location'), 'https://nafsiyati.wardyat.net/#apple_id_token=abc.def&state=therapist');
+  const e = await fetch(base + '/api/auth/apple/callback', { method: 'POST', redirect: 'manual', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'error=user_cancelled_authorize&state=patient' });
+  assert.equal(e.headers.get('location'), 'https://nafsiyati.wardyat.net/#state=patient');
 });

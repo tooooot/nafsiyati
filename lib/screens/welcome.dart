@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../main.dart' show loginError;
 import '../theme.dart';
 import 'login.dart';
 
@@ -24,6 +25,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 const Text('نفسيتي', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: C.lotusDark)),
                 const SizedBox(height: 16),
                 const Text('خطوتك الأولى نحو عقل أهدأ', style: TextStyle(color: C.grey, fontSize: 15)),
+                if (loginError != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text('تعذّر الدخول: $loginError', style: const TextStyle(color: Colors.red), textAlign: TextAlign.center)),
                 const Spacer(flex: 3),
                 _RoleSwitch(role: role, onChanged: (r) => setState(() => role = r)),
                 const SizedBox(height: 16),

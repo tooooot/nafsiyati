@@ -9,7 +9,7 @@ const iso = () => new Date().toISOString();
 const uid = () => crypto.randomBytes(8).toString('hex');
 
 /** يبني الخادم. getUser(token) → {id,name,email,roles}|null قابلة للحقن للاختبار. */
-function createApp({ dbPath = ':memory:', getUser, lk }) {
+function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https://nafsiyati.wardyat.net' }) {
   const db = new DatabaseSync(dbPath);
   db.exec(`
     create table if not exists therapists(user_id text primary key, name text, title text, bio text, topics text, languages text,
@@ -51,6 +51,19 @@ function createApp({ dbPath = ':memory:', getUser, lk }) {
   R('GET', '/api/therapists/:id', async (c) => {
     const t = q("select * from therapists where user_id=? and status='verified'", c.p.id); if (!t) throw E(404, 'غير موجود');
     return { ...th(t), slots: all('select id,start,minutes from slots where therapist_id=? and booked=0 and start>? order by start limit 60', t.user_id, iso()) };
+  });
+
+  // ---- الدخول: يمرّر رمز Google/Apple إلى wardyat-core (المفتاح عند الخادم فقط) ----
+  const login = (provider) => async (c) => {
+    const t = String(c.body.id_token || ''); if (t.length < 20 || t.length > 8000) throw E(400, 'رمز غير صالح');
+    const r = await social(provider, t); if (!r) throw E(401, 'تعذّر الدخول'); return { token: r.token, user: r.user };
+  };
+  R('POST', '/api/auth/google', login('google'));
+  R('POST', '/api/auth/apple', login('apple'));
+  // آبل تُعيد المستخدم بـPOST نموذجي؛ نحوّله إلى التطبيق والرمز في الجزء بعد # (لا يصل للخوادم)
+  R('POST', '/api/auth/apple/callback', async (c) => {
+    const st = c.body.state === 'therapist' ? 'therapist' : 'patient', t = String(c.body.id_token || '');
+    return { redirect: siteUrl + '/#' + (t && !c.body.error ? 'apple_id_token=' + encodeURIComponent(t) + '&' : '') + 'state=' + st };
   });
 
   R('GET', '/api/me', async (c) => { c.need(); const t = q('select * from therapists where user_id=?', c.user.id); return { user: { id: c.user.id, name: c.user.name, email: c.user.email, isAdmin: isAdmin(c.user) }, therapist: t ? { ...th(t), licenseNo: t.license_no } : null }; });
@@ -130,17 +143,19 @@ function createApp({ dbPath = ':memory:', getUser, lk }) {
     const ip = (req.headers['cf-connecting-ip'] || req.socket.remoteAddress || '').toString();
     if (limited(ip)) return send(res, 429, { error: 'طلبات كثيرة' });
     const u = new URL(req.url, 'http://x'); let raw = '';
-    req.on('data', (d) => { raw += d; if (raw.length > 16384) req.destroy(); });
+    req.on('data', (d) => { raw += d; if (raw.length > 20000) req.destroy(); });
     req.on('end', async () => {
       try {
         let hit, p;
         for (const r of routes) { if (r.m !== req.method) continue; const m = r.re.exec(u.pathname); if (m) { hit = r; p = m.groups || {}; break; } }
         if (!hit) return send(res, 404, { error: 'غير موجود' });
-        let body = {}; if (raw) { try { body = JSON.parse(raw); } catch { throw E(400, 'JSON غير صالح'); } }
+        let body = {}; if (raw) { if (/x-www-form-urlencoded/.test(req.headers['content-type'] || '')) body = Object.fromEntries(new URLSearchParams(raw)); else { try { body = JSON.parse(raw); } catch { throw E(400, 'JSON غير صالح'); } } }
         const tok = (req.headers.authorization || '').replace(/^Bearer /, '');
         const user = tok ? await getUser(tok) : null;
         const c = { p, body, query: Object.fromEntries(u.searchParams), user, need() { if (!user) throw E(401, 'سجّل الدخول أولاً'); } };
-        send(res, 200, await hit.fn(c));
+        const out = await hit.fn(c);
+        if (out && out.redirect) { res.writeHead(302, { Location: out.redirect, 'Cache-Control': 'no-store' }); return res.end(); }
+        send(res, 200, out);
       } catch (e) { send(res, e.code || 500, { error: e.code ? e.message : 'خطأ في الخادم' }); if (!e.code) console.error(e); }
     });
   });
@@ -160,7 +175,11 @@ if (require.main === module) {
     cache.set(k, { user, exp: Date.now() + 60000 }); if (cache.size > 2000) cache.clear();
     return user;
   };
-  const { server } = createApp({ dbPath: '/app/data/nafsiyati.db', getUser, lk: { key: env.LIVEKIT_API_KEY, secret: env.LIVEKIT_API_SECRET, url: env.LIVEKIT_URL || 'wss://lk.wardyat.net', demo: env.DEMO_VIDEO === '1' } });
+  const social = async (provider, id_token) => {
+    const r = await fetch('https://core.wardyat.net/v1/auth/' + provider, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-App-Key': env.CORE_APP_KEY }, body: JSON.stringify({ id_token }) });
+    return r.ok ? r.json() : null;
+  };
+  const { server } = createApp({ dbPath: '/app/data/nafsiyati.db', getUser, social, lk: { key: env.LIVEKIT_API_KEY, secret: env.LIVEKIT_API_SECRET, url: env.LIVEKIT_URL || 'wss://lk.wardyat.net', demo: env.DEMO_VIDEO === '1' } });
   server.listen(3000, () => console.log('nafsiyati-api :3000'));
 }
 module.exports = { createApp };
