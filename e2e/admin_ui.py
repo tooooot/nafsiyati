@@ -6,7 +6,7 @@ TOK = os.environ['DEV_ADMIN']
 QUIZ = ['نعم', 'امرأة', 'أقل من 30', 'نعم', 'داعم ومشجّع', 'بالتعاطف']
 
 def api(path):
-    r = urllib.request.Request(BASE + 'api' + path, headers={'Authorization': 'Bearer ' + TOK})
+    r = urllib.request.Request(BASE + 'api' + path, headers={'Authorization': 'Bearer ' + TOK, 'User-Agent': 'Mozilla/5.0 e2e'})
     return json.load(urllib.request.urlopen(r, timeout=30))
 
 def clk(pg, name):
