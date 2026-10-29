@@ -18,8 +18,13 @@ def run():
             pg.on('console', lambda m, i=i: print(f'P{i}:', m.text[:300]) if any(k in m.text.lower() for k in ('exception', 'null check', 'livekit', 'ice', 'fail')) else None)
             pg.goto(URL, wait_until='load', timeout=90000)
             pg.wait_for_timeout(12000)
-            pg.evaluate("document.querySelector('flt-semantics-placeholder')?.click()")
-            pg.wait_for_timeout(1500)
+            for _ in range(10):
+                pg.evaluate("document.querySelector('flt-semantics-placeholder')?.click()")
+                pg.wait_for_timeout(1500)
+                if pg.get_by_role('button').count() > 0:
+                    break
+            else:
+                pg.screenshot(path='fail_semantics.png')
             btn(pg, 'ابدأ'); btn(pg, 'Google')
             for a in QUIZ:
                 try:
