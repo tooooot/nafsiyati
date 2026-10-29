@@ -57,7 +57,7 @@ with sync_playwright() as p:
     clk(pg, 'رجوع')
     clk(pg, 'لوحة الإدارة'); must(pg, 'مستخدمون', 'توثيق المعالجين', 'أعضاء الإدارة والصلاحيات'); pg.screenshot(path='dash3_admin.png', timeout=120000)
     clk(pg, 'أعضاء الإدارة والصلاحيات'); must(pg, 'إضافة عضو'); pg.screenshot(path='dash4_staff.png', timeout=120000)
-    clk(pg, 'رجوع'); clk(pg, 'المستخدمون'); must(pg, 'ابحث'); pg.screenshot(path='dash5_users.png', timeout=120000)
+    clk(pg, 'رجوع'); clk(pg, 'المستخدمون'); must(pg, 'admin@dev.invalid'); pg.screenshot(path='dash5_users.png', timeout=120000)
     pw = boot(b, PAT)
     clk(pw, 'حسابي'); must(pw, 'محفظتي'); must(pw, 'لوحات العمل') if False else None
     assert 'لوحات العمل' not in texts(pw), 'المريض رأى لوحات العمل'
