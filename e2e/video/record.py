@@ -21,7 +21,7 @@ def clk(pg, name, last=False):
     except Exception:
         print('CLKFAIL', name, [x.strip()[:60] for x in pg.locator('flt-semantics').all_inner_texts()][:20], [(x.get_attribute('aria-label') or '')[:60] for x in pg.locator('flt-semantics[aria-label]').all()][:20], flush=True)
         pg.screenshot(path='vid/fail.png', timeout=60000); raise
-    pg.wait_for_timeout(1500)
+    pg.mouse.move(2, 2); pg.wait_for_timeout(1500)  # إبعاد المؤشر كي لا تظهر تلميحات
 
 # (دور، مقطع، هل برمز دخول، [(مفتاح المشهد، إجراء)])
 SEGMENTS = {
