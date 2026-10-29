@@ -1,0 +1,19 @@
+{
+ "patient_welcome": 8.2,
+ "patient_login": 5.28,
+ "patient_list": 5.2,
+ "patient_profile": 3.84,
+ "patient_sessions": 6.58,
+ "patient_wallet": 3.47,
+ "patient_end": 4.13,
+ "therapist_welcome": 5.04,
+ "therapist_panel": 5.09,
+ "therapist_sessions": 3.19,
+ "therapist_notes": 4.96,
+ "therapist_end": 5.8,
+ "staff_hub": 6.4,
+ "staff_admin": 6.09,
+ "staff_growth": 8.2,
+ "staff_finance": 8.44,
+ "staff_staff": 7.89
+}
