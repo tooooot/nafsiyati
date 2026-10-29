@@ -9,7 +9,12 @@ def clk(pg, name):
     loc = pg.get_by_role('button', name=name)
     if loc.count() == 0: loc = pg.get_by_role('tab', name=name)
     if loc.count() == 0: loc = pg.locator('flt-semantics').filter(has_text=name)
-    loc.first.click(timeout=30000); pg.wait_for_timeout(1200)
+    try:
+        loc.first.click(timeout=30000)
+    except Exception:
+        print('CLKFAIL', name, [x.strip() for x in pg.locator('flt-semantics').all_inner_texts()][:25], flush=True)
+        pg.screenshot(path='fail_%s.png' % abs(hash(name)), timeout=60000); raise
+    pg.wait_for_timeout(2000)
 
 def open_as(b, token, role):
     c = b.new_context(viewport={'width': 390, 'height': 844}, locale='ar-SA', permissions=['camera', 'microphone'])
