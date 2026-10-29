@@ -28,6 +28,8 @@ def must(pg, *words):
         t = texts(pg)
         if all(w in t for w in words): return
         pg.wait_for_timeout(1000)
+    pg.screenshot(path='must_fail.png', timeout=60000)
+    print('LABELS', [x.get_attribute('aria-label') for x in pg.locator('flt-semantics[aria-label]').all()][:30], flush=True)
     for w in words:
         assert w in t, f'لم يظهر «{w}»: {t[:400]}'
 
