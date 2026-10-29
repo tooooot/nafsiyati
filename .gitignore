@@ -9,3 +9,4 @@ web/
 site/
 server/.env
 server/data/
+apk/

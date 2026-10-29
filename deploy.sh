@@ -10,5 +10,5 @@ rm -rf /tmp/nz/new && unzip -q -o /tmp/nz/web.zip -d /tmp/nz/new
 V=$(date +%s)
 sed -i -E "s#\"mainJsPath\":\"main\.dart\.js(\?v=[0-9]+)?\"#\"mainJsPath\":\"main.dart.js?v=$V\"#" /tmp/nz/new/flutter_bootstrap.js
 sed -i -E "s#flutter_bootstrap\.js(\?v=[0-9]+)?#flutter_bootstrap.js?v=$V#g" /tmp/nz/new/index.html
-rsync -a --delete /tmp/nz/new/ site/
+rsync -a --delete --exclude nafsiyati.apk /tmp/nz/new/ site/
 echo "نُشر: run $R"
