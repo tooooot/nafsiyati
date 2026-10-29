@@ -29,7 +29,7 @@ class _AdminScreenState extends State<AdminScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('إدارة المعالجين'), leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context))),
+        appBar: AppBar(title: const Text('إدارة المعالجين'), leading: IconButton(tooltip: 'رجوع', icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context))),
         body: Column(children: [
           Padding(
             padding: const EdgeInsets.all(12),

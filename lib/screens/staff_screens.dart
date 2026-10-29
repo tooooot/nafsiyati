@@ -33,7 +33,7 @@ class PageShell extends StatelessWidget {
   const PageShell(this.title, this.child, {super.key, this.actions = const []});
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(title), actions: actions, leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context))),
+        appBar: AppBar(title: Text(title), actions: actions, leading: IconButton(tooltip: 'رجوع', icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context))),
         body: child,
       );
 }
