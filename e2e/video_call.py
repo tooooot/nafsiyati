@@ -4,7 +4,7 @@ URL = 'https://nafsiyati.wardyat.net/'
 ARGS = ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required']
 QUIZ = ['نعم', 'امرأة', 'أقل من 30', 'نعم', 'داعم ومشجّع', 'بالتعاطف']
 
-def btn(pg, name, exact=True):
+def btn(pg, name, exact=False):
     pg.get_by_role('button', name=name, exact=exact).first.click(timeout=20000)
     pg.wait_for_timeout(900)
 
@@ -20,7 +20,7 @@ def run():
             pg.wait_for_timeout(12000)
             pg.evaluate("document.querySelector('flt-semantics-placeholder')?.click()")
             pg.wait_for_timeout(1500)
-            btn(pg, 'ابدأ'); btn(pg, 'المتابعة بحساب Google')
+            btn(pg, 'ابدأ'); btn(pg, 'Google')
             for a in QUIZ: btn(pg, a)
             btn(pg, 'جلساتي', exact=False)
             pg.get_by_role('textbox').first.fill('probe' + 'e2e42')
