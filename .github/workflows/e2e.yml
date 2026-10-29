@@ -7,8 +7,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pip install playwright && playwright install --with-deps chromium
-      - run: python e2e/video_call.py
+      - run: python e2e/session_call.py
         continue-on-error: true
+        env:
+          DEV_PATIENT: ${{ secrets.DEV_PATIENT }}
+          DEV_THERAPIST: ${{ secrets.DEV_THERAPIST }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
