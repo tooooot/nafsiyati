@@ -44,6 +44,13 @@ test('تدفق كامل: تقديم معالج ← توثيق ← موعد ← �
   assert.equal(again.s, 200, 'الموعد المُلغى يعود متاحاً');
 });
 
+test('/api/me: حالة المعالج والمدير', async () => {
+  assert.equal((await call('GET', '/api/me')).s, 401);
+  const m = (await call('GET', '/api/me', 'tTher')).j; assert.equal(m.therapist.status, 'verified'); assert.equal(m.user.isAdmin, false);
+  assert.equal((await call('GET', '/api/me', 'tPat')).j.therapist, null);
+  assert.equal((await call('GET', '/api/me', 'tAdmin')).j.user.isAdmin, true);
+});
+
 test('نافذة الفيديو: داخل 10 دقائق يُصدر توكناً، وبعد الانتهاء يُرفض', async () => {
   const slot = (await call('POST', '/api/therapist/slots', 'tTher', { start: inMin(5), minutes: 30 })).j;
   const apt = (await call('POST', '/api/appointments', 'tPat', { slotId: slot.id })).j;

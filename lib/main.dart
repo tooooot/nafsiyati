@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'theme.dart';
+import 'data/api.dart';
+import 'screens/home.dart';
+import 'screens/quiz.dart';
 import 'screens/welcome.dart';
+import 'theme.dart';
+
+/// دخول المراجعة بتوكن جلسة عبر ?dev=…&role=… (يُفعَّل ببناء المراجعة فقط، ويُزال عند تفعيل الدخول الحقيقي).
+const devLogin = bool.fromEnvironment('DEV_LOGIN');
 
 void main() => runApp(const NafsiyatiApp());
 
@@ -16,6 +22,41 @@ class NafsiyatiApp extends StatelessWidget {
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
         supportedLocales: const [Locale('ar')],
         builder: (c, w) => Directionality(textDirection: TextDirection.rtl, child: w!),
-        home: const WelcomeScreen(),
+        home: const Boot(),
+      );
+}
+
+/// يقرّر الشاشة الأولى: جلسة محفوظة صالحة ← التطبيق، وإلا الترحيب.
+class Boot extends StatefulWidget {
+  const Boot({super.key});
+  @override
+  State<Boot> createState() => _BootState();
+}
+
+class _BootState extends State<Boot> {
+  late final Future<Widget> f = _decide();
+  Future<Widget> _decide() async {
+    await Api.load();
+    if (devLogin) {
+      final q = Uri.base.queryParameters;
+      if (q['dev'] != null) await Api.save(newToken: q['dev'], newRole: q['role'] == 'therapist' ? 'therapist' : 'patient');
+    }
+    if (Api.token == null) return const WelcomeScreen();
+    try {
+      await Api.get('/me');
+    } on ApiError catch (e) {
+      if (e.code == 401) {
+        await Api.signOut();
+        return const WelcomeScreen();
+      }
+    }
+    if (Api.role == 'therapist') return const HomeShell(therapist: true);
+    return Api.quizDone ? const HomeShell() : const QuizScreen();
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<Widget>(
+        future: f,
+        builder: (c, s) => s.hasData ? s.data! : const Scaffold(body: Center(child: CircularProgressIndicator(color: C.green))),
       );
 }

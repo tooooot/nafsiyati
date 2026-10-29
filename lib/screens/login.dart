@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
-import 'quiz.dart';
-import 'home.dart';
 
-/// الدخول بجوجل وآبل فقط (قرار المالك). الربط الفعلي بـ wardyat-core في مرحلة لاحقة.
+/// الدخول بجوجل وآبل فقط (قرار المالك). الربط الفعلي بـ wardyat-core ينتظر معرّفات OAuth.
 class LoginScreen extends StatelessWidget {
   final String role;
   const LoginScreen({super.key, required this.role});
 
-  void _done(BuildContext c) => Navigator.pushAndRemoveUntil(
-      c, MaterialPageRoute(builder: (_) => role == 'patient' ? const QuizScreen() : const HomeShell()), (r) => false);
+  void _soon(BuildContext c) => ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content: Text('الدخول بهذه الطريقة سيُفعَّل قريباً في النسخة التجريبية.')));
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -26,13 +23,9 @@ class LoginScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 const Text('خصوصيتك محفوظة. لا نشارك بياناتك مع أحد.', style: TextStyle(color: C.grey), textAlign: TextAlign.center),
                 const Spacer(),
-                ElevatedButton(onPressed: () => _done(context), child: const Text('المتابعة بحساب Google')),
+                ElevatedButton(onPressed: () => _soon(context), child: const Text('المتابعة بحساب Google')),
                 const SizedBox(height: 12),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
-                  onPressed: () => _done(context),
-                  child: const Text('المتابعة بحساب Apple'),
-                ),
+                ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.black), onPressed: () => _soon(context), child: const Text('المتابعة بحساب Apple')),
                 const SizedBox(height: 24),
               ]),
             ),

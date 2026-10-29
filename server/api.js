@@ -53,6 +53,8 @@ function createApp({ dbPath = ':memory:', getUser, lk }) {
     return { ...th(t), slots: all('select id,start,minutes from slots where therapist_id=? and booked=0 and start>? order by start limit 60', t.user_id, iso()) };
   });
 
+  R('GET', '/api/me', async (c) => { c.need(); const t = q('select * from therapists where user_id=?', c.user.id); return { user: { id: c.user.id, name: c.user.name, email: c.user.email, isAdmin: isAdmin(c.user) }, therapist: t ? { ...th(t), licenseNo: t.license_no } : null }; });
+
   // ---- المعالج ----
   R('POST', '/api/therapist/apply', async (c) => {
     c.need(); const b = c.body, name = String(b.name || '').trim();

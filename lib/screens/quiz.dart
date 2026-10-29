@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/mock.dart';
 import '../theme.dart';
+import '../data/api.dart';
 import 'home.dart';
 
 /// استبيان التطابق — شريط تقدّم وخيارات كبيرة (Figma: Welcome to Nefsiyti 1/10..6/10).
@@ -18,6 +19,7 @@ class _QuizScreenState extends State<QuizScreen> {
     if (i + 1 < questions.length) {
       setState(() => i++);
     } else {
+      Api.markQuizDone();
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeShell()));
     }
   }

@@ -1,52 +1,12 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
-import '../data/api.dart';
 import '../theme.dart';
 
-/// مدخل تجربة الفيديو: رمز غرفة يُشارَك بين الطرفين.
-class DemoCallEntry extends StatefulWidget {
-  const DemoCallEntry({super.key});
-  @override
-  State<DemoCallEntry> createState() => _DemoCallEntryState();
-}
-
-class _DemoCallEntryState extends State<DemoCallEntry> {
-  final ctl = TextEditingController(text: _rand());
-  static String _rand() {
-    const a = 'abcdefghjkmnpqrstuvwxyz23456789';
-    final r = Random.secure();
-    return List.generate(6, (_) => a[r.nextInt(a.length)]).join();
-  }
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('تجربة جلسة الفيديو', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          const Text('افتح التطبيق على جهازين وأدخل نفس الرمز. الجلسة بين طرفين فقط.', style: TextStyle(color: C.grey)),
-          const SizedBox(height: 20),
-          TextField(
-            controller: ctl,
-            textDirection: TextDirection.ltr,
-            decoration: InputDecoration(labelText: 'رمز الغرفة', filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () {
-              final code = ctl.text.trim().toLowerCase();
-              Navigator.push(context, MaterialPageRoute(builder: (_) => CallScreen(room: 'demo-$code', name: 'مشارك')));
-            },
-            child: const Text('ادخل الجلسة'),
-          ),
-        ]),
-      );
-}
+typedef Connect = Future<({String url, String token})> Function();
 
 class CallScreen extends StatefulWidget {
-  final String room, name;
-  const CallScreen({super.key, required this.room, required this.name});
+  final Connect connect;
+  const CallScreen({super.key, required this.connect});
   @override
   State<CallScreen> createState() => _CallScreenState();
 }
@@ -66,7 +26,7 @@ class _CallScreenState extends State<CallScreen> {
 
   Future<void> _join() async {
     try {
-      final t = await fetchVideoToken(widget.room, widget.name);
+      final t = await widget.connect();
       await room.connect(t.url, t.token, roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true));
       await room.localParticipant?.setMicrophoneEnabled(true);
       await room.localParticipant?.setCameraEnabled(true);

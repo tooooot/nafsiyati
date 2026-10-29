@@ -1,19 +1,3 @@
-/// بيانات تجريبية للواجهة فقط — تُستبدل بالواجهة البرمجية.
-class Therapist {
-  final String id, name, title, bio;
-  final List<String> topics, languages;
-  final int priceDzd;
-  final double rating;
-  final List<String> slots;
-  const Therapist(this.id, this.name, this.title, this.bio, this.topics, this.languages, this.priceDzd, this.rating, this.slots);
-}
-
-const therapists = <Therapist>[
-  Therapist('t1', 'د. أمينة بلقاسم', 'أخصائية نفسية', 'علاج القلق والصدمات والعلاقات الأسرية.', ['القلق', 'الصدمات', 'الأسرة'], ['العربية', 'الفرنسية'], 5000, 4.9, ['اليوم 14:00', 'اليوم 17:00', 'غداً 10:00']),
-  Therapist('t2', 'د. كريم بوعزة', 'طبيب نفسي', 'الاكتئاب واضطرابات النوم وإدارة الضغوط.', ['الاكتئاب', 'النوم', 'الضغوط'], ['العربية', 'الفرنسية', 'الإنجليزية'], 6500, 4.8, ['اليوم 18:30', 'غداً 09:00']),
-  Therapist('t3', 'أ. سلمى حداد', 'أخصائية نفسية للأطفال', 'سلوك الأطفال والمراهقين وإرشاد الوالدين.', ['الأطفال', 'المراهقون'], ['العربية'], 4500, 4.7, ['غداً 11:00', 'غداً 16:00']),
-];
-
 class Question {
   final String text;
   final List<String> options;
