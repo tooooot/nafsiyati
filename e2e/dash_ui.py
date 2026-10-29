@@ -21,7 +21,10 @@ def clk(pg, name):
 def texts(pg): return ' | '.join(x.strip().replace('\n', ' ') for x in pg.locator('flt-semantics').all_inner_texts())
 
 def must(pg, *words):
-    t = texts(pg)
+    for _ in range(12):  # قد تتأخر البيانات بعد ظهور الشاشة
+        t = texts(pg)
+        if all(w in t for w in words): return
+        pg.wait_for_timeout(1000)
     for w in words:
         assert w in t, f'لم يظهر «{w}»: {t[:400]}'
 
