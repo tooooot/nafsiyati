@@ -1,0 +1,43 @@
+services:
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: nafsiyati-livekit
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    env_file: .env
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
+    volumes:
+      - ./livekit.yaml.tpl:/etc/livekit.yaml:ro
+    ports:
+      - "7881:7881/tcp"
+      - "7882:7882/udp"
+    networks: [n8n_default]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=n8n_default
+      - traefik.http.routers.nlk.rule=Host(`lk.wardyat.net`)
+      - traefik.http.routers.nlk.entrypoints=web,websecure
+      - traefik.http.routers.nlk.tls.certresolver=mytlschallenge
+      - traefik.http.services.nlk.loadbalancer.server.port=7880
+  api:
+    image: node:22-alpine
+    container_name: nafsiyati-api
+    restart: unless-stopped
+    working_dir: /app
+    command: node --no-warnings api.js
+    env_file: .env
+    volumes:
+      - ./api.js:/app/api.js:ro
+      - ./data:/app/data
+    networks: [n8n_default]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=n8n_default
+      - traefik.http.routers.napi.rule=Host(`nafsiyati.wardyat.net`) && PathPrefix(`/api`)
+      - traefik.http.routers.napi.entrypoints=web,websecure
+      - traefik.http.routers.napi.tls.certresolver=mytlschallenge
+      - traefik.http.services.napi.loadbalancer.server.port=3000
+networks:
+  n8n_default:
+    external: true

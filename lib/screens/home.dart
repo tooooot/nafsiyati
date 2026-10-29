@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import 'therapists.dart';
+import 'call.dart';
 
 /// الغلاف: شريط سفلي ثابت في كل الصفحات (ملاحظة المالك في المحادثة الأصلية).
 class HomeShell extends StatefulWidget {
@@ -14,6 +15,7 @@ class _HomeShellState extends State<HomeShell> {
   static const _titles = ['الرئيسية', 'المعالجون', 'جلساتي', 'حسابي'];
   Widget _body() {
     if (tab == 1) return const TherapistsScreen();
+    if (tab == 2) return const DemoCallEntry();
     return Center(child: Text('${_titles[tab]} — قريباً', style: const TextStyle(color: C.grey)));
   }
 

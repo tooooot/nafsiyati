@@ -7,3 +7,5 @@ web/
 *.iml
 .env
 site/
+server/.env
+server/data/
