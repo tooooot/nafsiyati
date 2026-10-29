@@ -30,7 +30,7 @@ class _QuizScreenState extends State<QuizScreen> {
         backgroundColor: Colors.transparent,
         title: const Text('أهلاً بك في نفسيتي', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
         centerTitle: true,
-        leading: i > 0 ? IconButton(icon: const Icon(Icons.arrow_forward), onPressed: () => setState(() => i--)) : null,
+        leading: i > 0 ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => setState(() => i--)) : null,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),

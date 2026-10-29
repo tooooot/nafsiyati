@@ -18,7 +18,7 @@ class LoginScreen extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Column(children: [
-                Row(children: [IconButton(icon: const Icon(Icons.arrow_forward), onPressed: () => Navigator.pop(context))]),
+                Row(children: [IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context))]),
                 const Spacer(),
                 Image.asset('assets/logo.png', width: 110),
                 const SizedBox(height: 16),
