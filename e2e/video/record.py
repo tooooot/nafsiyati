@@ -16,7 +16,11 @@ def clk(pg, name, last=False):
     if loc.count() == 0: loc = pg.get_by_role('button', name=name)
     if loc.count() == 0: loc = pg.get_by_role('tab', name=name)
     if loc.count() == 0: loc = pg.locator('flt-semantics').filter(has_text=name)
-    (loc.last if last else loc.first).click(timeout=30000, force=True)
+    try:
+        (loc.last if last else loc.first).click(timeout=20000, force=True)
+    except Exception:
+        print('CLKFAIL', name, [x.strip()[:60] for x in pg.locator('flt-semantics').all_inner_texts()][:20], [(x.get_attribute('aria-label') or '')[:60] for x in pg.locator('flt-semantics[aria-label]').all()][:20], flush=True)
+        pg.screenshot(path='vid/fail.png', timeout=60000); raise
     pg.wait_for_timeout(1500)
 
 # (دور، مقطع، هل برمز دخول، [(مفتاح المشهد، إجراء)])
