@@ -21,7 +21,10 @@ def clk(pg, name):
         print('CLKFAIL', name, [x.strip() for x in pg.locator('flt-semantics').all_inner_texts()][:30], flush=True); pg.screenshot(path='fail.png', timeout=60000); raise
     pg.wait_for_timeout(2500)
 
-def texts(pg): return ' | '.join(x.strip().replace('\n', ' ') for x in pg.locator('flt-semantics').all_inner_texts())
+def texts(pg):
+    inner = [x.strip().replace('\n', ' ') for x in pg.locator('flt-semantics').all_inner_texts()]
+    labels = [(x.get_attribute('aria-label') or '').replace('\n', ' ') for x in pg.locator('flt-semantics[aria-label]').all()]
+    return ' | '.join(inner + labels)
 
 def must(pg, *words):
     for _ in range(12):  # قد تتأخر البيانات بعد ظهور الشاشة
