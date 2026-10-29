@@ -13,7 +13,6 @@ class CallScreen extends StatefulWidget {
 
 class _CallScreenState extends State<CallScreen> {
   final room = Room();
-  String status = 'جارٍ الاتصال…';
   String? error;
   bool mic = true, cam = true;
 
@@ -30,10 +29,20 @@ class _CallScreenState extends State<CallScreen> {
       await room.connect(t.url, t.token, roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true));
       await room.localParticipant?.setMicrophoneEnabled(true);
       await room.localParticipant?.setCameraEnabled(true);
-      if (mounted) setState(() => status = 'متصل');
     } catch (e) {
       if (mounted) setState(() => error = '$e');
     }
+  }
+
+  /// حالة الاتصال الصريحة (تتحدّث مع كل تغيّر في الغرفة).
+  String _statusText() {
+    if (error != null) return 'تعذّر الاتصال';
+    return switch (room.connectionState.name) {
+      'connected' => 'متصل',
+      'reconnecting' => 'جارٍ إعادة الاتصال…',
+      'disconnected' => 'انقطع الاتصال',
+      _ => 'جارٍ الاتصال…',
+    };
   }
 
   VideoTrack? _video(Participant? p) {
@@ -70,7 +79,7 @@ class _CallScreenState extends State<CallScreen> {
               top: 12, left: 12, width: 110, height: 150,
               child: ClipRRect(borderRadius: BorderRadius.circular(12), child: VideoTrackRenderer(lv, mirrorMode: VideoViewMirrorMode.mirror)),
             ),
-          Positioned(top: 12, right: 12, child: Text(status, style: const TextStyle(color: Colors.white70, fontSize: 12))),
+          Positioned(top: 12, right: 12, child: Text(_statusText(), style: const TextStyle(color: Colors.white70, fontSize: 12))),
           Positioned(
             bottom: 24, left: 0, right: 0,
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [

@@ -60,7 +60,10 @@ class _SessionsScreenState extends State<SessionsScreen> {
             builder: (c, s) {
               if (s.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator(color: C.green));
               if (s.hasError) return ErrorBox('${s.error}', onRetry: _refresh);
-              final list = s.data!.where((a) => a.status == 'booked').toList()..sort((x, y) => x.start.compareTo(y.start));
+              final nowU = DateTime.now().toUtc();
+              // المنتهية (بعد النهاية بعشر دقائق) لا تُعرض؛ المتاحة للدخول أولاً ثم بحسب الوقت
+              final list = s.data!.where((a) => a.status == 'booked' && nowU.isBefore(a.end.add(const Duration(minutes: 10)))).toList()
+                ..sort((x, y) => x.joinable == y.joinable ? x.start.compareTo(y.start) : (x.joinable ? -1 : 1));
               return ListView(padding: const EdgeInsets.all(16), children: [
                 const Text('جلساتي', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 16),
@@ -71,12 +74,15 @@ class _SessionsScreenState extends State<SessionsScreen> {
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(widget.asTherapist ? (a.patient ?? 'مريض') : (a.therapist ?? ''), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                      Row(children: [
+                        Expanded(child: Text(widget.asTherapist ? (a.patient ?? 'مريض') : (a.therapist ?? ''), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
+                        if (a.joinable) const Chip(label: Text('متاحة الآن', style: TextStyle(fontSize: 11, color: Colors.white)), backgroundColor: C.green, side: BorderSide.none, visualDensity: VisualDensity.compact),
+                      ]),
                       const SizedBox(height: 4),
                       Row(children: [const Icon(Icons.event, size: 16, color: C.grey), const SizedBox(width: 6), Text('${fmtTime(a.start)} • ${a.minutes} دقيقة', style: const TextStyle(color: C.grey))]),
                       const SizedBox(height: 10),
                       Row(children: [
-                        Expanded(child: ElevatedButton.icon(onPressed: a.joinable ? () => _join(a) : null, icon: const Icon(Icons.videocam), label: Text(a.joinable ? 'ادخل الجلسة' : 'تفتح قبل الموعد بـ10 دقائق'))),
+                        Expanded(child: ElevatedButton.icon(onPressed: a.joinable ? () => _join(a) : null, icon: const Icon(Icons.videocam), label: Text(a.joinable ? 'ادخل الجلسة' : 'تُفتح قبل الموعد بـ10 دقائق'))),
                         const SizedBox(width: 8),
                         OutlinedButton(onPressed: () => _cancel(a), child: const Text('إلغاء')),
                       ]),
