@@ -10,10 +10,13 @@ def api(path, tok, body=None, method=None):
     return json.load(urllib.request.urlopen(r, timeout=30))
 
 def clk(pg, name):
-    loc = pg.get_by_role('button', name=name)
+    loc = pg.get_by_role('button', name=name, exact=True)
+    if loc.count() == 0: loc = pg.get_by_role('button', name=name)
     if loc.count() == 0: loc = pg.get_by_role('tab', name=name)
     if loc.count() == 0: loc = pg.locator('flt-semantics').filter(has_text=name)
-    try: loc.first.click(timeout=30000)
+    try:
+        try: loc.first.click(timeout=15000)
+        except Exception: pg.wait_for_timeout(3000); loc.first.click(timeout=30000, force=True)
     except Exception:
         print('CLKFAIL', name, [x.strip() for x in pg.locator('flt-semantics').all_inner_texts()][:30], flush=True); pg.screenshot(path='fail.png', timeout=60000); raise
     pg.wait_for_timeout(2500)
