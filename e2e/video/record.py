@@ -27,7 +27,7 @@ def clk(pg, name, last=False):
 SEGMENTS = {
  'patient': [
   ('A', False, [('welcome', None), ('login', lambda pg: clk(pg, 'ابدأ'))]),
-  ('B', True, [('list', None), ('profile', lambda pg: clk(pg, 'أمينة')), ('sessions', lambda pg: (clk(pg, 'رجوع', True), clk(pg, 'جلساتي'))), ('wallet', lambda pg: (clk(pg, 'حسابي'), clk(pg, 'محفظتي')))]),
+  ('B', True, [('list', None), ('profile', lambda pg: clk(pg, 'عرض الملف')), ('sessions', lambda pg: (clk(pg, 'رجوع', True), clk(pg, 'جلساتي'))), ('wallet', lambda pg: (clk(pg, 'حسابي'), clk(pg, 'محفظتي')))]),
   ('C', False, [('end', None)]),
  ],
  'therapist': [
