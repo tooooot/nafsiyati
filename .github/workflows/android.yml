@@ -1,0 +1,55 @@
+name: Android APK
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: 3.47.6, channel: stable, cache: true }
+      - run: flutter create --platforms=android --project-name nafsiyati --org net.wardyat .
+      - run: rm -rf test
+      - name: Patch Android (permissions, minSdk, signing, label)
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          echo "$KS_B64" | base64 -d > $RUNNER_TEMP/up.jks
+          M=android/app/src/main/AndroidManifest.xml
+          python3 - <<'PY'
+          import re
+          m='android/app/src/main/AndroidManifest.xml'; s=open(m,encoding='utf-8').read()
+          perms=''.join(f'    <uses-permission android:name="android.permission.{p}"/>\n' for p in ['INTERNET','ACCESS_NETWORK_STATE','CAMERA','RECORD_AUDIO','MODIFY_AUDIO_SETTINGS','BLUETOOTH','BLUETOOTH_CONNECT','WAKE_LOCK'])
+          feats='    <uses-feature android:name="android.hardware.camera" android:required="false"/>\n'
+          s=s.replace('<application',perms+feats+'    <application',1)
+          s=re.sub(r'android:label="[^"]*"','android:label="نفسيتي"',s,count=1)
+          open(m,'w',encoding='utf-8').write(s)
+          g='android/app/build.gradle.kts'; t=open(g,encoding='utf-8').read()
+          t+='''
+          android {
+              defaultConfig { minSdk = 24 }
+              signingConfigs {
+                  create("upload") {
+                      storeFile = file(System.getenv("KS_PATH"))
+                      storePassword = System.getenv("KS_PASS")
+                      keyAlias = "nafsiyati"
+                      keyPassword = System.getenv("KS_PASS")
+                  }
+              }
+              buildTypes { getByName("release") { signingConfig = signingConfigs.getByName("upload") } }
+          }
+          '''
+          open(g,'w',encoding='utf-8').write(t)
+          PY
+      - run: flutter pub get
+      - run: flutter build apk --release
+        env:
+          KS_PATH: ${{ runner.temp }}/up.jks
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nafsiyati-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14

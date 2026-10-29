@@ -3,7 +3,7 @@
 set -e
 cd /root/nafsiyati
 T=$(tr -d '\n ' </root/env/github_token.txt)
-R=$(curl -s -H "Authorization: Bearer $T" "https://api.github.com/repos/tooooot/nafsiyati/actions/runs?status=success&per_page=1" | python3 -I -c "import sys,json;print(json.load(sys.stdin)['workflow_runs'][0]['id'])")
+R=$(curl -s -H "Authorization: Bearer $T" "https://api.github.com/repos/tooooot/nafsiyati/actions/workflows/web.yml/runs?status=success&per_page=1" | python3 -I -c "import sys,json;print(json.load(sys.stdin)['workflow_runs'][0]['id'])")
 A=$(curl -s -H "Authorization: Bearer $T" https://api.github.com/repos/tooooot/nafsiyati/actions/runs/$R/artifacts | python3 -I -c "import sys,json;print(json.load(sys.stdin)['artifacts'][0]['id'])")
 mkdir -p /tmp/nz && curl -sL -H "Authorization: Bearer $T" -o /tmp/nz/web.zip https://api.github.com/repos/tooooot/nafsiyati/actions/artifacts/$A/zip
 rm -rf /tmp/nz/new && unzip -q -o /tmp/nz/web.zip -d /tmp/nz/new

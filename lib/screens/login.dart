@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import '../data/api.dart';
 import '../data/oauth.dart';
-import '../main.dart' show loginError;
+import '../main.dart' show Boot, loginError;
 import '../theme.dart';
 
 const _site = 'https://nafsiyati.wardyat.net';
@@ -12,7 +15,25 @@ class LoginScreen extends StatelessWidget {
   final String role;
   const LoginScreen({super.key, required this.role});
 
-  void _google() => goTo('https://accounts.google.com/o/oauth2/v2/auth?${Uri(queryParameters: {
+  bool get _androidApp => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  /// التطبيق الأصلي (أندرويد): نافذة Google الأصلية ثم الرمز للخادم. الويب: إعادة توجيه.
+  Future<void> _google(BuildContext context) async {
+    if (kIsWeb) return _googleWeb();
+    try {
+      await GoogleSignIn.instance.initialize(serverClientId: _googleClient);
+      final acc = await GoogleSignIn.instance.authenticate();
+      final tok = acc.authentication.idToken;
+      if (tok == null) throw ApiError(0, 'لم يصل رمز الدخول من Google');
+      final r = await Api.post('/auth/google', {'id_token': tok});
+      await Api.save(newToken: r['token'] as String, newRole: role);
+      if (context.mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const Boot()), (r) => false);
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذّر الدخول: ${e is ApiError ? e.message : e}')));
+    }
+  }
+
+  void _googleWeb() => goTo('https://accounts.google.com/o/oauth2/v2/auth?${Uri(queryParameters: {
         'client_id': _googleClient,
         'redirect_uri': '$_site/',
         'response_type': 'id_token',
@@ -47,9 +68,11 @@ class LoginScreen extends StatelessWidget {
                 const Text('خصوصيتك محفوظة. لا نشارك بياناتك مع أحد.', style: TextStyle(color: C.grey), textAlign: TextAlign.center),
                 if (loginError != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(loginError!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center)),
                 const Spacer(),
-                ElevatedButton(onPressed: _google, child: const Text('المتابعة بحساب Google')),
+                ElevatedButton(onPressed: () => _google(context), child: const Text('المتابعة بحساب Google')),
+                if (!_androidApp) ...[
                 const SizedBox(height: 12),
                 ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.black), onPressed: _apple, child: const Text('المتابعة بحساب Apple')),
+                ],
                 const SizedBox(height: 24),
               ]),
             ),
