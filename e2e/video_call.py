@@ -21,7 +21,12 @@ def run():
             pg.evaluate("document.querySelector('flt-semantics-placeholder')?.click()")
             pg.wait_for_timeout(1500)
             btn(pg, 'ابدأ'); btn(pg, 'Google')
-            for a in QUIZ: btn(pg, a)
+            for a in QUIZ:
+                try:
+                    btn(pg, a)
+                except Exception:
+                    print('QUIZFAIL', a, '|', [x.strip() for x in pg.locator('flt-semantics').all_inner_texts()][:20], flush=True)
+                    pg.screenshot(path='fail.png'); raise
             btn(pg, 'جلساتي', exact=False)
             pg.get_by_role('textbox').first.fill('probe' + 'e2e42')
             btn(pg, 'ادخل الجلسة')
