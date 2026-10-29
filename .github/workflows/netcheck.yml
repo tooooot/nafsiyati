@@ -1,0 +1,13 @@
+name: Net check
+on: workflow_dispatch
+jobs:
+  c:
+    runs-on: ubuntu-latest
+    steps:
+      - name: tcp 7881
+        run: |
+          for p in 7881 443 80; do
+            timeout 6 bash -c "echo > /dev/tcp/45.32.154.86/$p" && echo "PORT $p OPEN" || echo "PORT $p CLOSED"
+          done
+      - name: lk signalling
+        run: curl -s -m 10 -o /dev/null -w "wss-host http:%{http_code}\n" https://lk.wardyat.net/
