@@ -1,0 +1,19 @@
+services:
+  nafsiyati-web:
+    image: nginx:alpine
+    container_name: nafsiyati-web
+    restart: unless-stopped
+    volumes:
+      - ./site:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks: [n8n_default]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=n8n_default
+      - traefik.http.routers.nafsiyati.rule=Host(`nafsiyati.wardyat.net`)
+      - traefik.http.routers.nafsiyati.entrypoints=web,websecure
+      - traefik.http.routers.nafsiyati.tls.certresolver=mytlschallenge
+      - traefik.http.services.nafsiyati.loadbalancer.server.port=80
+networks:
+  n8n_default:
+    external: true

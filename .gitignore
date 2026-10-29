@@ -6,3 +6,4 @@ web/
 .flutter-plugins*
 *.iml
 .env
+site/
