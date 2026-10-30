@@ -13,7 +13,7 @@ const users = {
 };
 let base, srv;
 test.before(async () => {
-  const { server } = createApp({ getUser: async (t) => users[t] || null, lk: { key: 'k', secret: 's', url: 'wss://x' } });
+  const { server } = createApp({ maxPerMin: 100000, getUser: async (t) => users[t] || null, lk: { key: 'k', secret: 's', url: 'wss://x' } });
   srv = server; await new Promise((r) => server.listen(0, r)); base = 'http://127.0.0.1:' + server.address().port;
 });
 test.after(() => srv.close());

@@ -11,7 +11,7 @@ const iso = () => new Date().toISOString();
 const uid = () => crypto.randomBytes(8).toString('hex');
 
 /** يبني الخادم. getUser(token) → {id,name,email,roles}|null قابلة للحقن للاختبار. */
-function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https://nafsiyati.wardyat.net', placesKey = '', placesFetch }) {
+function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https://nafsiyati.wardyat.net', placesKey = '', placesFetch, maxPerMin = 60 }) {
   const db = new DatabaseSync(dbPath);
   db.exec(`
     create table if not exists therapists(user_id text primary key, name text, title text, bio text, topics text, languages text,
@@ -40,7 +40,7 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
   }
 
   const hits = new Map();
-  const limited = (ip) => { const m = Math.floor(Date.now() / 60000), k = ip + m; hits.set(k, (hits.get(k) || 0) + 1); if (hits.size > 5000) for (const x of hits.keys()) if (!x.endsWith(String(m))) hits.delete(x); return hits.get(k) > 60; };
+  const limited = (ip) => { const m = Math.floor(Date.now() / 60000), k = ip + m; hits.set(k, (hits.get(k) || 0) + 1); if (hits.size > 5000) for (const x of hits.keys()) if (!x.endsWith(String(m))) hits.delete(x); return hits.get(k) > maxPerMin; };
 
   const routes = [];
   const R = (m, p, fn) => routes.push({ m, re: new RegExp('^' + p.replace(/:(\w+)/g, '(?<$1>[^/]+)') + '$'), fn });
