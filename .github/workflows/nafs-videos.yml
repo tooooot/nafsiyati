@@ -1,0 +1,35 @@
+name: Render promo videos
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'أسماء الفيديوهات مفصولة بمسافة (فارغ = الكل)'
+        required: false
+        default: ''
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y libraqm0 ffmpeg && pip install pillow numpy arabic-reshaper python-bidi requests
+      - name: compose + final
+        working-directory: videofactory/art
+        env:
+          ADS_IN: ${{ github.workspace }}/out
+          ADS_CLIPS: ${{ github.workspace }}/videofactory/clips
+          ADS_FONTS: ${{ github.workspace }}/videofactory/fonts
+          ADS_LOGO: ${{ github.workspace }}/assets/logo.png
+          ONLY: ${{ github.event.inputs.only }}
+        run: |
+          mkdir -p "$ADS_IN"
+          KEYS="${ONLY:-recruit_why recruit_signup recruit_verify recruit_start recruit_launch patient_first patient_privacy therapist_pocket staff_roles}"
+          for k in $KEYS; do
+            if [ "$k" = recruit_why ]; then python3 nafs_scenes.py compose $k; else python3 nafs_scenes2.py compose $k; fi
+            python3 nafs_videos.py final $k
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nafs-videos
+          path: out
+          retention-days: 3
