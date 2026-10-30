@@ -12,6 +12,8 @@ jobs:
         with: { flutter-version: 3.47.6, channel: stable, cache: true }
       - run: flutter create --platforms=android --project-name nafsiyati --org net.wardyat .
       - run: rm -rf test
+      - name: App icons from logo
+        run: pip install -q pillow && python3 tools/make_icons.py
       - name: Patch Android (permissions, minSdk, signing, label)
         env:
           KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}

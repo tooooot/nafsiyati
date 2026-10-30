@@ -17,6 +17,8 @@ jobs:
       - name: Generate platform folders
         run: flutter create --platforms=web,android --project-name nafsiyati --org net.wardyat .
       - run: rm -rf test
+      - name: App icons from logo
+        run: pip install -q pillow && python3 tools/make_icons.py
       - name: Brand web shell
         run: |
           sed -i 's#<title>nafsiyati</title>#<title>صحتي النفسية</title>#; s#content="nafsiyati"#content="صحتي النفسية"#; s#A new Flutter project.#منصة جلسات نفسية بالفيديو بخصوصية عالية#' web/index.html
