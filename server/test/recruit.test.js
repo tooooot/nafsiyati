@@ -39,6 +39,7 @@ test('مسار التجنيد: من الاكتشاف إلى الإطلاق مع 
   assert.equal(done.length, 7);
 
   await call('POST', '/api/therapist/apply', 'tDoc', { name: 'د. مكتب', licenseNo: 'L9', priceDzd: 4000, invite: tok });
+  await call('POST', '/api/therapist/cert', 'tDoc', { data: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB', 'base64').toString('base64') });
   await call('POST', '/api/admin/therapists/d1/status', 'tAdmin', { status: 'verified' });
   await call('POST', '/api/therapist/slots', 'tDoc', { start: new Date(Date.now() + 9e6).toISOString() });
 

@@ -20,6 +20,7 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
     create table if not exists appointments(id text primary key, therapist_id text, patient_id text, patient_name text, slot_id text,
       start text, minutes integer, price_dzd integer, status text default 'booked', paid integer default 0, created text);
     create table if not exists notes(appointment_id text primary key, therapist_id text, body text, updated text);
+    create table if not exists therapist_certs(user_id text primary key, mime text, data blob, created text);
     create index if not exists ix_slots_t on slots(therapist_id, start);
     create index if not exists ix_apt_p on appointments(patient_id);
     create index if not exists ix_apt_t on appointments(therapist_id);
@@ -30,7 +31,7 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
   const all = (s, ...a) => db.prepare(s).all(...a);
   const run = (s, ...a) => db.prepare(s).run(...a);
 
-  const th = (r) => r && ({ id: r.user_id, name: r.name, title: r.title, bio: r.bio, topics: JSON.parse(r.topics || '[]'), languages: JSON.parse(r.languages || '[]'), priceDzd: r.price_dzd, status: r.status });
+  const th = (r) => r && ({ id: r.user_id, name: r.name, title: r.title, bio: r.bio, topics: JSON.parse(r.topics || '[]'), languages: JSON.parse(r.languages || '[]'), priceDzd: r.price_dzd, status: r.status, hasCert: !!q('select 1 from therapist_certs where user_id=?', r.user_id) });
 
   function livekitToken({ room, identity, name, ttl = 1800 }) {
     const now = Math.floor(Date.now() / 1000), head = b64({ alg: 'HS256', typ: 'JWT' });
@@ -147,16 +148,32 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
   R('GET', '/api/appointments/:id/notes', async (c) => { c.need(); const a = q('select * from appointments where id=? and therapist_id=?', c.p.id, c.user.id); if (!a) throw E(404, 'غير موجود'); const n = q('select body from notes where appointment_id=?', a.id); return { body: n ? n.body : '' }; });
   R('PUT', '/api/appointments/:id/notes', async (c) => { c.need(); const a = q('select * from appointments where id=? and therapist_id=?', c.p.id, c.user.id); if (!a) throw E(404, 'غير موجود'); run('insert into notes values(?,?,?,?) on conflict(appointment_id) do update set body=excluded.body, updated=excluded.updated', a.id, c.user.id, String(c.body.body || '').slice(0, 8000), iso()); return { ok: 1 }; });
 
+  // صورة الشهادة: خاصة، تُحفظ في القاعدة وتُعرض للإدارة المخوّلة فقط
+  R('POST', '/api/therapist/cert', async (c) => {
+    c.need(); if (!q('select 1 from therapists where user_id=?', c.user.id)) throw E(400, 'قدّم ملفك أولاً ثم ارفع الشهادة');
+    const buf = Buffer.from(String(c.body.data || ''), 'base64');
+    const mime = buf.length > 8 && buf[0] === 0xff && buf[1] === 0xd8 ? 'image/jpeg' : buf.length > 8 && buf.subarray(1, 4).toString() === 'PNG' ? 'image/png' : '';
+    if (!mime) throw E(400, 'الصورة يجب أن تكون JPG أو PNG');
+    if (buf.length > 2_000_000) throw E(413, 'الصورة كبيرة (الحد 2 ميغابايت)');
+    run('insert into therapist_certs values(?,?,?,?) on conflict(user_id) do update set mime=excluded.mime,data=excluded.data,created=excluded.created', c.user.id, mime, buf, iso());
+    return { ok: 1 };
+  });
+  R('GET', '/api/admin/therapists/:id/cert', async (c) => {
+    c.need(); if (!S.can(c.user, 'therapists')) throw E(403, 'للمدير فقط');
+    const r = q('select mime,data from therapist_certs where user_id=?', c.p.id); if (!r) throw E(404, 'لا شهادة مرفوعة');
+    return { mime: r.mime, data: Buffer.from(r.data).toString('base64') };
+  });
+
   // ---- الإدارة: توثيق المعالجين ----
   R('GET', '/api/admin/therapists', async (c) => { c.need(); if (!S.can(c.user, 'therapists')) throw E(403, 'للمدير فقط'); return all('select * from therapists where status=? order by created', String(c.query.status || 'pending')).map((t) => ({ ...th(t), licenseNo: t.license_no, created: t.created })); });
-  R('POST', '/api/admin/therapists/:id/status', async (c) => { c.need(); if (!S.can(c.user, 'therapists')) throw E(403, 'للمدير فقط'); const st = String(c.body.status); if (!['verified', 'rejected', 'pending'].includes(st)) throw E(400, 'حالة غير صالحة'); const r = run('update therapists set status=? where user_id=?', st, c.p.id); if (!r.changes) throw E(404, 'غير موجود'); if (st === 'verified') RC.byUser(c.p.id, 'verified'); return { ok: 1 }; });
+  R('POST', '/api/admin/therapists/:id/status', async (c) => { c.need(); if (!S.can(c.user, 'therapists')) throw E(403, 'للمدير فقط'); const st = String(c.body.status); if (!['verified', 'rejected', 'pending'].includes(st)) throw E(400, 'حالة غير صالحة'); if (st === 'verified' && !q('select 1 from therapist_certs where user_id=?', c.p.id)) throw E(400, 'لا يمكن التوثيق قبل رفع صورة الشهادة'); const r = run('update therapists set status=? where user_id=?', st, c.p.id); if (!r.changes) throw E(404, 'غير موجود'); if (st === 'verified') RC.byUser(c.p.id, 'verified'); return { ok: 1 }; });
 
   const send = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(obj)); };
   const server = http.createServer((req, res) => {
     const ip = (req.headers['cf-connecting-ip'] || req.socket.remoteAddress || '').toString();
     if (limited(ip)) return send(res, 429, { error: 'طلبات كثيرة' });
     const u = new URL(req.url, 'http://x'); let raw = '';
-    req.on('data', (d) => { raw += d; if (raw.length > 20000) req.destroy(); });
+    req.on('data', (d) => { raw += d; if (raw.length > (u.pathname === '/api/therapist/cert' ? 3_000_000 : 20000)) req.destroy(); });
     req.on('end', async () => {
       try {
         let hit, p;

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../data/api.dart';
 import '../theme.dart';
@@ -22,6 +23,19 @@ class _AdminScreenState extends State<AdminScreen> {
     try {
       await Api.post('/admin/therapists/$id/status', {'status': st});
       _reload();
+    } on ApiError catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Future<void> _cert(String id) async {
+    try {
+      final r = await Api.get('/admin/therapists/$id/cert') as Map;
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (c) => Dialog(child: InteractiveViewer(child: Image.memory(base64Decode(r['data'] as String)))),
+      );
     } on ApiError catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
@@ -65,7 +79,9 @@ class _AdminScreenState extends State<AdminScreen> {
           Text('السعر: ${t['priceDzd']} دج'),
           if ((t['topics'] as List).isNotEmpty) Text('التخصصات: ${(t['topics'] as List).join('، ')}'),
           if ('${t['bio'] ?? ''}'.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text('${t['bio']}', style: const TextStyle(color: C.grey))),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
+          if (t['hasCert'] == true) TextButton.icon(onPressed: () => _cert('${t['id']}'), icon: const Icon(Icons.badge_outlined), label: const Text('عرض صورة الشهادة')) else const Text('لم يرفع صورة الشهادة', style: TextStyle(color: C.grey)),
+          const SizedBox(height: 4),
           Row(children: [
             if (status != 'verified') Expanded(child: ElevatedButton(onPressed: () => _set('${t['id']}', 'verified'), child: const Text('توثيق'))),
             if (status == 'pending') const SizedBox(width: 8),

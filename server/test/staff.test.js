@@ -23,6 +23,7 @@ const inMin = (m) => new Date(Date.now() + m * 60000).toISOString();
 test('الصلاحيات والمسوّق والمالية والقسائم والعمولة 15%', async () => {
   // تهيئة: معالج موثّق بسعر 5000 وموعدان
   await call('POST', '/api/therapist/apply', 'tTher', { name: 'د. معالج', licenseNo: 'L1', priceDzd: 5000 });
+  await call('POST', '/api/therapist/cert', 'tTher', { data: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB', 'base64').toString('base64') });
   await call('POST', '/api/admin/therapists/th1/status', 'tAdmin', { status: 'verified' });
   const s1 = (await call('POST', '/api/therapist/slots', 'tTher', { start: inMin(300) })).j, s2 = (await call('POST', '/api/therapist/slots', 'tTher', { start: inMin(400) })).j;
   for (const t of ['tPat', 'tPat2', 'tMkt', 'tFin', 'tMgr']) await call('GET', '/api/me', t);

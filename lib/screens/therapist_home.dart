@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../data/api.dart';
 import '../data/models.dart';
 import '../theme.dart';
@@ -109,12 +111,22 @@ class _ApplyForm extends StatefulWidget {
 class _ApplyFormState extends State<_ApplyForm> {
   final name = TextEditingController(), title = TextEditingController(), license = TextEditingController(), price = TextEditingController(), topics = TextEditingController(), bio = TextEditingController();
   bool busy = false;
+  XFile? cert;
+  Future<void> _pick() async {
+    final x = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 1800, imageQuality: 80);
+    if (x != null) setState(() => cert = x);
+  }
+
   Widget _f(String l, TextEditingController c, {TextInputType? k, int lines = 1}) => Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: TextField(controller: c, keyboardType: k, maxLines: lines, decoration: InputDecoration(labelText: l, filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)))),
       );
 
   Future<void> _send() async {
+    if (cert == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ارفع صورة شهادتك أو رخصتك أولاً')));
+      return;
+    }
     setState(() => busy = true);
     try {
       await Api.post('/therapist/apply', {
@@ -122,6 +134,7 @@ class _ApplyFormState extends State<_ApplyForm> {
         'name': name.text.trim(), 'title': title.text.trim(), 'licenseNo': license.text.trim(), 'priceDzd': int.tryParse(price.text.trim()) ?? 0,
         'topics': topics.text.split(RegExp(r'[,،]')).map((e) => e.trim()).where((e) => e.isNotEmpty).toList(), 'languages': ['العربية'], 'bio': bio.text.trim(),
       });
+      await Api.post('/therapist/cert', {'data': base64Encode(await cert!.readAsBytes())});
       widget.onDone();
     } on ApiError catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -139,6 +152,15 @@ class _ApplyFormState extends State<_ApplyForm> {
         _f('الاسم الكامل', name),
         _f('التخصص (مثال: أخصائي نفسي)', title),
         _f('رقم الترخيص المهني', license),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: OutlinedButton.icon(
+            onPressed: busy ? null : _pick,
+            icon: Icon(cert == null ? Icons.upload_file : Icons.check_circle, color: C.green),
+            label: Text(cert == null ? 'ارفع صورة الشهادة أو الرخصة (JPG/PNG)' : 'تم اختيار الصورة — اضغط للتغيير'),
+          ),
+        ),
+        const Padding(padding: EdgeInsets.only(bottom: 12), child: Text('تُحفظ صورتك بسرية ولا يراها إلا فريق التوثيق.', style: TextStyle(color: C.grey, fontSize: 12))),
         _f('سعر الجلسة بالدينار الجزائري', price, k: TextInputType.number),
         _f('المجالات (افصل بفاصلة)', topics),
         _f('نبذة قصيرة', bio, lines: 3),

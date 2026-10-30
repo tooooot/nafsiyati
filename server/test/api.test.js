@@ -23,6 +23,13 @@ test('تدفق كامل: تقديم معالج ← توثيق ← موعد ← �
   assert.equal((await call('GET', '/api/therapists')).j.length, 0, 'غير الموثّق لا يظهر');
   assert.equal((await call('POST', '/api/therapist/slots', 'tTher', { start: inMin(300) })).s, 403, 'غير الموثّق لا يضيف مواعيد');
   assert.equal((await call('GET', '/api/admin/therapists', 'tPat')).s, 403, 'غير المدير ممنوع');
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from('fake-image-body')]).toString('base64');
+  assert.equal((await call('POST', '/api/admin/therapists/th1/status', 'tAdmin', { status: 'verified' })).s, 400, 'لا توثيق بلا شهادة');
+  assert.equal((await call('POST', '/api/therapist/cert', 'tTher', { data: Buffer.from('not an image at all').toString('base64') })).s, 400, 'ملف غير صورة');
+  assert.equal((await call('POST', '/api/therapist/cert', 'tTher', { data: png })).s, 200);
+  assert.equal((await call('GET', '/api/admin/therapists/th1/cert', 'tPat')).s, 403, 'الشهادة للإدارة فقط');
+  const cert = (await call('GET', '/api/admin/therapists/th1/cert', 'tAdmin')).j; assert.equal(cert.mime, 'image/png'); assert.equal(cert.data, png);
+  assert.equal((await call('GET', '/api/admin/therapists', 'tAdmin')).j[0].hasCert, true);
   assert.equal((await call('POST', '/api/admin/therapists/th1/status', 'tAdmin', { status: 'verified' })).s, 200);
   assert.equal((await call('GET', '/api/therapists')).j.length, 1);
   const slot = (await call('POST', '/api/therapist/slots', 'tTher', { start: inMin(300) })).j;
