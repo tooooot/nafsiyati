@@ -1,6 +1,10 @@
 name: Web (موقع المراجعة)
 on:
   workflow_dispatch:
+    inputs:
+      dev_login:
+        description: 'بناء اختبار فقط: تفعيل دخول ?dev= (لا يُنشر)'
+        default: 'false'
   push:
     branches: [main]
 jobs:
@@ -25,7 +29,7 @@ jobs:
           sed -i 's#"nafsiyati"#"صحتي النفسية"#g; s#A new Flutter project.#منصة جلسات نفسية بالفيديو#' web/manifest.json
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos --no-fatal-warnings
-      - run: flutter build web --release --base-href / --pwa-strategy=none --dart-define=DEV_LOGIN=true
+      - run: flutter build web --release --base-href / --pwa-strategy=none --dart-define=DEV_LOGIN=${{ github.event.inputs.dev_login == 'true' }}
       - uses: actions/upload-artifact@v4
         with:
           name: nafsiyati-web
