@@ -163,10 +163,10 @@ def end_card(t0, t):
 
 def compose(k, preview=None):
     tm = json.load(open(nv.TIMING))[k]; ph = nv.P[k]; st = tm['starts'] + [tm['end']]; DUR = tm['dur']; n = int(DUR * FPS)
-    heads = [[(ph[0][0].split('،')[0], WHITE, 0.0), ('وما عندك عيادة؟', GREEN, 1.4)],
-             [('عيادتك', WHITE, 0.0), ('على جوالك', MINT, 0.5)],
+    heads = [[('لديك رخصة؟', WHITE, 0.0), ('افتح عيادتك', GREEN, 1.4)],
+             [('استقبل مرضاك', WHITE, 0.0), ('من أي مكان', MINT, 0.5)],
              [('مواعيدك', WHITE, 0.0), ('وسعر جلستك', MINT, 0.5), ('بيدك', GREEN, 1.3)],
-             [('نتحقق من رخصتك', WHITE, 0.0), ('فتظهر بعلامة «موثّق»', GREEN, 1.6)]]
+             [('نتحقق من رخصتك', WHITE, 0.0), ('فيظهر ملفك بعلامة «موثّق»', GREEN, 1.6)]]
     base = bg(); os.makedirs(nv.WORK, exist_ok=True); out = f'{nv.WORK}/nafs_{k}.mp4'
     p = subprocess.Popen(['ffmpeg', '-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{W}x{H}', '-r', str(FPS), '-i', '-', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '19', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', out], stdin=subprocess.PIPE) if preview is None else None
     for f in range(n) if preview is None else [int(preview * FPS)]:
