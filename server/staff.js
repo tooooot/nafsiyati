@@ -1,7 +1,7 @@
 // لوحات الإدارة والتسويق والمالية: صلاحيات دقيقة، والخادم هو من يفرضها (المسوّق والمالية لا يريان بيانات سريرية ولا هويات المرضى).
 const FEE_PERCENT = 15; // عمولة المنصة من سعر الجلسة (قرار المالك 2026-10-29)
 const ALL = ['stats', 'users', 'appointments', 'therapists', 'staff', 'vouchers', 'growth', 'finance', 'payments'];
-const ROLE_PERMS = { admin: ALL, marketer: ['growth', 'vouchers'], finance: ['finance', 'payments', 'stats'] };
+const ROLE_PERMS = { admin: ALL, marketer: ['growth', 'vouchers'], support: ['growth'], finance: ['finance', 'payments', 'stats'] };
 const fee = (price) => Math.round((price || 0) * FEE_PERCENT / 100);
 
 function schema(db) {

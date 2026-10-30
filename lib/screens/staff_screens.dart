@@ -11,7 +11,7 @@ const permNames = {
   'stats': 'الأرقام العامة', 'users': 'المستخدمون', 'appointments': 'المواعيد', 'therapists': 'توثيق المعالجين', 'staff': 'أعضاء الإدارة',
   'vouchers': 'القسائم', 'growth': 'أرقام النمو', 'finance': 'الاطلاع على المالية', 'payments': 'تسجيل الدفعات',
 };
-const roleNames = {'admin': 'مدير', 'marketer': 'مسوّق', 'finance': 'مالية'};
+const roleNames = {'admin': 'مدير', 'marketer': 'مسوّق', 'support': 'خدمة عملاء', 'finance': 'مالية'};
 
 String dzd(num n) => '$n دج';
 String day(String iso) => fmtTime(DateTime.parse(iso));
