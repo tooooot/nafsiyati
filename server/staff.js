@@ -122,6 +122,22 @@ function register({ R, q, all, run, E, uid, iso }) {
     return all(`select a.id,a.start,a.status,a.price_dzd,a.discount_dzd,a.voucher,a.paid,t.name therapist from appointments a left join therapists t on t.user_id=a.therapist_id ${st === '0' ? "where a.paid=0 and a.status='booked'" : st === '1' ? 'where a.paid=1' : ''} order by a.start desc limit 200`)
       .map((a) => ({ id: a.id, start: a.start, status: a.status, priceDzd: a.price_dzd, discountDzd: a.discount_dzd || 0, voucher: a.voucher, fee: fee(a.price_dzd), paid: !!a.paid, therapist: a.therapist }));
   });
+  // تصدير CSV (بلا هويات مرضى). kind=sessions|payouts، من/إلى بتاريخ YYYY-MM-DD اختيارياً. BOM لتفتح العربية صحيحة في إكسل.
+  const csvCell = (v) => { let t = String(v ?? ''); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return /[",\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+  const csv = (head, rows) => '﻿' + [head, ...rows].map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+  R('GET', '/api/finance/export', async (c) => {
+    need(c, 'finance'); const kind = c.query.kind === 'payouts' ? 'payouts' : 'sessions';
+    const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : ''), from = day(c.query.from), to = day(c.query.to);
+    const rng = (col) => [from ? ` and ${col}>=?` : '', to ? ` and ${col}<?` : ''].join(''), args = [from, to ? new Date(Date.parse(to) + 864e5).toISOString().slice(0, 10) : ''].filter(Boolean);
+    const method = { cash: 'نقداً', baridimob: 'بريدي موب', bank: 'تحويل بنكي' };
+    if (kind === 'payouts') {
+      const rows = all(`select p.created,t.name,p.amount,p.note from payouts p left join therapists t on t.user_id=p.therapist_id where 1=1${rng('p.created')} order by p.created`, ...args).map((r) => [r.created.slice(0, 10), r.name || '', r.amount, r.note || '']);
+      return { filename: 'payouts.csv', csv: csv(['التاريخ', 'المعالج', 'المبلغ (دج)', 'ملاحظة'], rows), count: rows.length };
+    }
+    const rows = all(`select a.start,a.status,a.price_dzd,a.discount_dzd,a.voucher,a.paid,t.name therapist,pm.method,pm.created paid_at from appointments a left join therapists t on t.user_id=a.therapist_id left join payments pm on pm.appointment_id=a.id where 1=1${rng('a.start')} order by a.start`, ...args)
+      .map((r) => [r.start.slice(0, 10), r.therapist || '', r.status === 'booked' ? 'محجوز' : 'ملغى', r.price_dzd, r.discount_dzd || 0, r.voucher || '', r.paid ? 'نعم' : 'لا', method[r.method] || '', (r.paid_at || '').slice(0, 10), r.paid ? fee(r.price_dzd) : 0, r.paid ? r.price_dzd - fee(r.price_dzd) : 0]);
+    return { filename: 'sessions.csv', csv: csv(['تاريخ الجلسة', 'المعالج', 'الحالة', 'السعر (دج)', 'الخصم (دج)', 'القسيمة', 'مدفوع', 'طريقة الدفع', 'تاريخ الدفع', 'عمولة المنصة (دج)', 'حصة المعالج (دج)'], rows), count: rows.length };
+  });
   R('POST', '/api/finance/appointments/:id/paid', async (c) => {
     need(c, 'payments'); const a = q('select * from appointments where id=?', c.p.id); if (!a) throw E(404, 'غير موجود');
     if (a.status !== 'booked') throw E(409, 'الموعد ملغى'); if (a.paid) throw E(409, 'مسجّل كمدفوع مسبقاً');

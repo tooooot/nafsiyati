@@ -61,6 +61,10 @@ test('الصلاحيات والمسوّق والمالية والقسائم وا
   const f1 = (await call('GET', '/api/finance/summary', 'tFin')).j; assert.equal(f1.gross, 4000); assert.equal(f1.platformFee, 600); assert.equal(f1.therapistsPayable, 3400);
   assert.equal((await call('POST', '/api/finance/payouts', 'tFin', { therapistId: 'th1', amount: 1000 })).s, 200);
   assert.equal((await call('GET', '/api/finance/summary', 'tFin')).j.therapists[0].balance, 2400);
+  assert.equal((await call('GET', '/api/finance/export', 'tMkt')).s, 403, 'المسوّق لا يصدّر المالية');
+  const ex = (await call('GET', '/api/finance/export?kind=sessions', 'tFin')).j; assert.equal(ex.count, 2); assert.ok(ex.csv.startsWith('\ufeff')); assert.ok(ex.csv.includes('بريدي موب')); assert.ok(ex.csv.includes(',600,3400')); assert.equal(ex.csv.includes('مريض'), false);
+  const exp = (await call('GET', '/api/finance/export?kind=payouts', 'tFin')).j; assert.equal(exp.count, 1); assert.ok(exp.csv.includes(',1000,'));
+  assert.equal((await call('GET', '/api/finance/export?kind=sessions&from=2020-01-01&to=2020-01-02', 'tFin')).j.count, 0, 'فلتر التاريخ');
   assert.equal((await call('GET', '/api/wallet', 'tPat2')).j.due, 5000);
 
   // الموعد المدفوع لا يُلغى، وإلغاء غير المدفوع يُرجع القسيمة

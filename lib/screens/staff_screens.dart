@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../data/api.dart';
+import '../data/download.dart';
 import '../data/models.dart' show fmtTime;
 import '../theme.dart';
 import 'admin.dart';
@@ -396,10 +398,39 @@ class _FinanceScreenState extends State<FinanceScreen> {
     if (n != null && c.mounted && await act(c, () => Api.post('/finance/payouts', {'therapistId': t['therapistId'], 'amount': n}))) setState(() => rev++);
   }
 
+  /// يصدّر CSV: ينزّل ملفاً على الويب، وعلى الجوال يعرض نافذة لنسخ المحتوى.
+  Future<void> _export(BuildContext c, String kind) async {
+    final from = await showDatePicker(context: c, helpText: 'من تاريخ (اضغط إلغاء لكل الفترة)', firstDate: DateTime(2025), lastDate: DateTime.now().add(const Duration(days: 365)), initialDate: DateTime.now());
+    DateTime? to;
+    if (from != null && c.mounted) to = await showDatePicker(context: c, helpText: 'إلى تاريخ', firstDate: from, lastDate: DateTime.now().add(const Duration(days: 365)), initialDate: from);
+    String d(DateTime t) => t.toIso8601String().substring(0, 10);
+    final qs = 'kind=$kind${from != null ? '&from=${d(from)}' : ''}${to != null ? '&to=${d(to)}' : ''}';
+    try {
+      final r = await Api.get('/finance/export?$qs') as Map;
+      if (!c.mounted) return;
+      if ((r['count'] as int) == 0) {
+        ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content: Text('لا بيانات في هذه الفترة')));
+      } else if (saveTextFile('${r['filename']}', '${r['csv']}')) {
+        ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text('نُزّل الملف (${r['count']} سطراً)')));
+      } else {
+        await Clipboard.setData(ClipboardData(text: '${r['csv']}'));
+        if (c.mounted) ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text('نُسخ المحتوى (${r['count']} سطراً) — الصقه في ملف CSV أو جدول بيانات')));
+      }
+    } on ApiError catch (e) {
+      if (c.mounted) ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) => PageShell(
         'لوحة المالية',
         ListView(padding: const EdgeInsets.all(12), children: [
+          Row(children: [
+            Expanded(child: OutlinedButton.icon(onPressed: () => _export(context, 'sessions'), icon: const Icon(Icons.download), label: const Text('تصدير الجلسات CSV'))),
+            const SizedBox(width: 8),
+            Expanded(child: OutlinedButton.icon(onPressed: () => _export(context, 'payouts'), icon: const Icon(Icons.download), label: const Text('تصدير التحويلات CSV'))),
+          ]),
+          const SizedBox(height: 8),
           Loader('/finance/summary?r=$rev', (c, d, _) {
             final ts = (d['therapists'] as List).cast<Map>();
             return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
