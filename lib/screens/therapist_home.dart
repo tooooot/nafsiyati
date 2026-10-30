@@ -118,6 +118,7 @@ class _ApplyFormState extends State<_ApplyForm> {
     setState(() => busy = true);
     try {
       await Api.post('/therapist/apply', {
+        'invite': await Api.invite(),
         'name': name.text.trim(), 'title': title.text.trim(), 'licenseNo': license.text.trim(), 'priceDzd': int.tryParse(price.text.trim()) ?? 0,
         'topics': topics.text.split(RegExp(r'[,،]')).map((e) => e.trim()).where((e) => e.isNotEmpty).toList(), 'languages': ['العربية'], 'bio': bio.text.trim(),
       });

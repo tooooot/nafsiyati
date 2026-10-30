@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import 'account.dart';
+import 'home_tab.dart';
 import 'sessions.dart';
 import 'therapist_home.dart';
 import 'therapists.dart';
@@ -19,6 +20,7 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     final t = widget.therapist;
     final pages = <Widget>[
+      if (!t) PatientHome(onBook: () => setState(() { tab = 1; rev++; })),
       t ? const TherapistPanel() : const TherapistsScreen(),
       SessionsScreen(asTherapist: t),
       const AccountScreen(),
@@ -30,6 +32,7 @@ class _HomeShellState extends State<HomeShell> {
         indicatorColor: C.mintSoft,
         onDestinationSelected: (v) => setState(() { tab = v; rev++; }),
         destinations: [
+          if (!t) const NavigationDestination(icon: Icon(Icons.home_outlined), label: 'الرئيسية'),
           NavigationDestination(icon: Icon(t ? Icons.calendar_month_outlined : Icons.people_outline), label: t ? 'مواعيدي' : 'المعالجون'),
           const NavigationDestination(icon: Icon(Icons.event_note_outlined), label: 'جلساتي'),
           const NavigationDestination(icon: Icon(Icons.person_outline), label: 'حسابي'),

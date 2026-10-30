@@ -3,6 +3,7 @@ import '../data/api.dart';
 import '../data/models.dart' show fmtTime;
 import '../theme.dart';
 import 'admin.dart';
+import 'recruit.dart';
 import 'therapists.dart' show ErrorBox;
 
 /// لوحات الإدارة والتسويق والمالية. الخادم هو من يفرض الصلاحيات؛ هنا نعرض ما يسمح به فقط.
@@ -119,6 +120,7 @@ class StaffHub extends StatelessWidget {
     return PageShell('لوحات العمل', ListView(padding: const EdgeInsets.all(16), children: [
       if (has('stats') || has('users') || has('appointments') || has('therapists') || has('staff')) tile(Icons.dashboard_outlined, 'لوحة الإدارة', AdminDashboard(perms)),
       if (has('growth') || has('vouchers')) tile(Icons.campaign_outlined, 'لوحة التسويق', GrowthScreen(perms)),
+      if (has('growth')) tile(Icons.group_add_outlined, 'تجنيد المعالجين', const RecruitScreen()),
       if (has('finance')) tile(Icons.account_balance_wallet_outlined, 'لوحة المالية', FinanceScreen(perms)),
     ]));
   }

@@ -1,7 +1,8 @@
-// خادم نفسيتي (بلا اعتماديات، node:sqlite). الدخول والأدوار من wardyat-core؛ هنا المجال: معالجون، مواعيد، حجز، فيديو.
+// خادم صحتي النفسية (بلا اعتماديات، node:sqlite). الدخول والأدوار من wardyat-core؛ هنا المجال: معالجون، مواعيد، حجز، فيديو.
 const http = require('http');
 const crypto = require('crypto');
 const staffMod = require('./staff.js');
+const recruitMod = require('./recruit.js');
 const { DatabaseSync } = require('node:sqlite');
 
 const E = (code, msg) => Object.assign(new Error(msg), { code });
@@ -10,7 +11,7 @@ const iso = () => new Date().toISOString();
 const uid = () => crypto.randomBytes(8).toString('hex');
 
 /** يبني الخادم. getUser(token) → {id,name,email,roles}|null قابلة للحقن للاختبار. */
-function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https://nafsiyati.wardyat.net' }) {
+function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https://nafsiyati.wardyat.net', placesKey = '', placesFetch }) {
   const db = new DatabaseSync(dbPath);
   db.exec(`
     create table if not exists therapists(user_id text primary key, name text, title text, bio text, topics text, languages text,
@@ -24,6 +25,7 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
     create index if not exists ix_apt_t on appointments(therapist_id);
   `);
   staffMod.schema(db);
+  recruitMod.schema(db);
   const q = (s, ...a) => db.prepare(s).get(...a);
   const all = (s, ...a) => db.prepare(s).all(...a);
   const run = (s, ...a) => db.prepare(s).run(...a);
@@ -43,6 +45,7 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
   const R = (m, p, fn) => routes.push({ m, re: new RegExp('^' + p.replace(/:(\w+)/g, '(?<$1>[^/]+)') + '$'), fn });
 
   const S = staffMod.register({ R, q, all, run, E, uid, iso });
+  const RC = recruitMod.register({ R, q, all, run, E, uid, iso, can: S.can, siteUrl, placesKey, fetchImpl: placesFetch });
 
   // ---- عام ----
   R('GET', '/api/health', async () => ({ ok: 1 }));
@@ -78,6 +81,7 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
     const price = Math.max(0, Math.min(200000, parseInt(b.priceDzd, 10) || 0));
     run(`insert into therapists values(?,?,?,?,?,?,?,?, 'pending', ?) on conflict(user_id) do update set name=excluded.name,title=excluded.title,bio=excluded.bio,topics=excluded.topics,languages=excluded.languages,price_dzd=excluded.price_dzd,license_no=excluded.license_no`,
       c.user.id, name.slice(0, 80), String(b.title || '').slice(0, 80), String(b.bio || '').slice(0, 600), JSON.stringify((b.topics || []).slice(0, 8).map(String)), JSON.stringify((b.languages || []).slice(0, 5).map(String)), price, String(b.licenseNo).slice(0, 60), iso());
+    if (b.invite) RC.registered(b.invite, c.user.id);
     return { ok: 1, status: q('select status from therapists where user_id=?', c.user.id).status };
   });
   R('GET', '/api/therapist/me', async (c) => { c.need(); const t = q('select * from therapists where user_id=?', c.user.id); if (!t) throw E(404, 'لا ملف معالج'); return { ...th(t), licenseNo: t.license_no, slots: all('select id,start,minutes,booked from slots where therapist_id=? and start>? order by start', c.user.id, iso()) }; });
@@ -87,7 +91,7 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
     if (isNaN(start) || start < new Date()) throw E(400, 'موعد غير صالح');
     const s = start.toISOString();
     if (q('select 1 x from slots where therapist_id=? and start=?', c.user.id, s)) throw E(409, 'الموعد مضاف مسبقاً');
-    const id = uid(); run('insert into slots(id,therapist_id,start,minutes) values(?,?,?,?)', id, c.user.id, s, minutes); return { id, start: s, minutes };
+    const id = uid(); run('insert into slots(id,therapist_id,start,minutes) values(?,?,?,?)', id, c.user.id, s, minutes); RC.byUser(c.user.id, 'launched'); return { id, start: s, minutes };
   });
   R('DELETE', '/api/therapist/slots/:id', async (c) => { verifiedTherapist(c); const r = run('delete from slots where id=? and therapist_id=? and booked=0', c.p.id, c.user.id); if (!r.changes) throw E(409, 'لا يمكن حذف موعد محجوز أو غير موجود'); return { ok: 1 }; });
 
@@ -145,7 +149,7 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
 
   // ---- الإدارة: توثيق المعالجين ----
   R('GET', '/api/admin/therapists', async (c) => { c.need(); if (!S.can(c.user, 'therapists')) throw E(403, 'للمدير فقط'); return all('select * from therapists where status=? order by created', String(c.query.status || 'pending')).map((t) => ({ ...th(t), licenseNo: t.license_no, created: t.created })); });
-  R('POST', '/api/admin/therapists/:id/status', async (c) => { c.need(); if (!S.can(c.user, 'therapists')) throw E(403, 'للمدير فقط'); const st = String(c.body.status); if (!['verified', 'rejected', 'pending'].includes(st)) throw E(400, 'حالة غير صالحة'); const r = run('update therapists set status=? where user_id=?', st, c.p.id); if (!r.changes) throw E(404, 'غير موجود'); return { ok: 1 }; });
+  R('POST', '/api/admin/therapists/:id/status', async (c) => { c.need(); if (!S.can(c.user, 'therapists')) throw E(403, 'للمدير فقط'); const st = String(c.body.status); if (!['verified', 'rejected', 'pending'].includes(st)) throw E(400, 'حالة غير صالحة'); const r = run('update therapists set status=? where user_id=?', st, c.p.id); if (!r.changes) throw E(404, 'غير موجود'); if (st === 'verified') RC.byUser(c.p.id, 'verified'); return { ok: 1 }; });
 
   const send = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(obj)); };
   const server = http.createServer((req, res) => {
@@ -192,7 +196,7 @@ if (require.main === module) {
     const r = await fetch('https://core.wardyat.net/v1/auth/' + provider, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-App-Key': env.CORE_APP_KEY }, body: JSON.stringify({ id_token }) });
     return r.ok ? r.json() : null;
   };
-  const { server } = createApp({ dbPath: '/app/data/nafsiyati.db', getUser, social, lk: { key: env.LIVEKIT_API_KEY, secret: env.LIVEKIT_API_SECRET, url: env.LIVEKIT_URL || 'wss://lk.wardyat.net', demo: env.DEMO_VIDEO === '1' } });
+  const { server } = createApp({ dbPath: '/app/data/nafsiyati.db', getUser, social, placesKey: env.PLACES_API_KEY || '', lk: { key: env.LIVEKIT_API_KEY, secret: env.LIVEKIT_API_SECRET, url: env.LIVEKIT_URL || 'wss://lk.wardyat.net', demo: env.DEMO_VIDEO === '1' } });
   server.listen(3000, () => console.log('nafsiyati-api :3000'));
 }
 module.exports = { createApp };

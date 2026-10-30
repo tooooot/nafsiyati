@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>صحتي النفسية — دليل انضمام المعالجين</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--ink:#14263a;--sub:#5b6b7c;--line:#dfe6ee;--bg:#f4f7fa;--card:#fff;--brand:#0f6e6e;--brand2:#0a4f55;--soft:#e3f2f1;--ok:#1f8a5b}
+@media(prefers-color-scheme:dark){:root{--ink:#e8eef4;--sub:#9fb0c1;--line:#26384a;--bg:#0e1a26;--card:#142333;--brand:#4fc1bd;--brand2:#7fd6d2;--soft:#173a3d;--ok:#4cc58d}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Tajawal,"Segoe UI",system-ui,sans-serif;line-height:1.8}
+.wrap{max-width:720px;margin:0 auto;padding:0 16px 80px}
+header{padding:28px 0 8px}
+.mark{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;color:var(--brand2)}
+.mark i{width:34px;height:34px;border-radius:9px;background:var(--brand);display:inline-grid;place-items:center;color:#fff;font-style:normal}
+h1{font-size:24px;margin:18px 0 6px}
+p.lead{color:var(--sub);margin:0 0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin:14px 0}
+video{width:100%;border-radius:12px;background:#000;max-height:60vh}
+.bar{height:8px;background:var(--line);border-radius:8px;overflow:hidden;margin:6px 0 4px}
+.bar b{display:block;height:100%;width:0;background:var(--brand);transition:width .4s}
+.step{display:flex;gap:14px;align-items:flex-start}
+.num{flex:none;width:34px;height:34px;border-radius:50%;background:var(--soft);color:var(--brand2);display:grid;place-items:center;font-weight:800}
+.step.done .num{background:var(--ok);color:#fff}
+.step h3{margin:0 0 2px;font-size:17px}
+.step p{margin:0 0 8px;color:var(--sub);font-size:15px}
+.mock{border:1px dashed var(--line);border-radius:10px;padding:10px 12px;background:var(--bg);font-size:14px;color:var(--sub);margin:6px 0 10px}
+button,a.btn{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 18px;background:var(--brand);color:#fff;cursor:pointer;text-decoration:none;display:inline-block}
+button.ghost{background:transparent;color:var(--brand2);border:1px solid var(--line)}
+button[disabled]{opacity:.5;cursor:default}
+.terms li{margin:4px 0}
+.cta{text-align:center;padding:22px}
+.note{font-size:13px;color:var(--sub)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="mark"><i>＋</i> صحتي النفسية</div>
+  <h1 id="hello">أهلاً بكم</h1>
+  <p class="lead">منصة جلسات نفسية بالفيديو، بخصوصية عالية وإشراف إداري على التوثيق. هذا الدليل يوضح كل ما تحتاجونه للانضمام وبدء الجلسات.</p>
+</header>
+
+<div class="card" id="vcard">
+  <video id="vid" controls playsinline preload="metadata" src="/videos/recruit.mp4"></video>
+  <div class="note" style="margin-top:8px">فيديو تعريفي قصير بالمنصة.</div>
+</div>
+
+<div class="card">
+  <strong>تقدّمكم في الدليل</strong>
+  <div class="bar"><b id="bar"></b></div>
+  <div class="note" id="cnt">0 من 7</div>
+</div>
+
+<div id="steps"></div>
+
+<div class="card">
+  <h3 style="margin-top:0">شروط الانضمام</h3>
+  <ul class="terms">
+    <li>رخصة مزاولة سارية، وتُراجَع من إدارة المنصة قبل ظهور ملفكم.</li>
+    <li>الالتزام بسرّية الجلسات؛ لا تُسجَّل مكالمات الفيديو، والملاحظات السريّة لا يراها غيركم.</li>
+    <li>عمولة المنصة 15% من سعر الجلسة (مؤقتة)، وتُحوَّل مستحقاتكم عبر الإدارة.</li>
+    <li>تحديد المواعيد والأسعار بيدكم، والموعد المدفوع لا يستطيع المريض إلغاءه.</li>
+  </ul>
+  <div class="note">هذه المنصة في مرحلة تجريب مغلقة.</div>
+</div>
+
+<div class="card cta">
+  <p id="ctamsg" style="margin-top:0">أنهوا الخطوات السبع ثم سجّلوا. يمكنكم التسجيل في أي وقت.</p>
+  <a class="btn" id="go" href="/">التسجيل كمعالج</a>
+</div>
+</div>
+
+<script>
+const T = new URLSearchParams(location.search).get('t') || '';
+const API = '/api/join/' + encodeURIComponent(T);
+const STEPS = [
+  ['intro', 'ما هي صحتي النفسية؟', 'منصة تربط المرضى بمعالجين موثّقين لجلسات فيديو خاصة. الإدارة تتحقق من الرخصة، وأنتم تتحكمون بمواعيدكم وأسعاركم.', 'المريض يختار المعالج ← يحجز موعداً ← تبدأ الجلسة بالفيديو'],
+  ['register', 'التسجيل', 'اضغطوا «التسجيل كمعالج» وادخلوا بحساب Google (أو Apple على الآيفون)، ثم اختاروا «أنا معالج» واملؤوا الاسم والتخصص ورقم الترخيص والسعر.', 'الدخول ← أنا معالج ← بيانات الملف المهني ← إرسال'],
+  ['license', 'التوثيق ورفع الشهادة', 'بعد الإرسال يظهر ملفكم لدى الإدارة «بانتظار التوثيق». تراجع الإدارة رقم الترخيص وتتواصل معكم إن احتاجت مستنداً، ثم يُفعَّل الملف ويظهر للمرضى.', 'قيد المراجعة ← موثّق ✓'],
+  ['slots', 'إضافة المواعيد', 'من «مواعيدي» أضيفوا الأوقات المتاحة. كل موعد يظهر للمرضى فور إضافته، ويمكن حذف الموعد غير المحجوز في أي وقت.', 'الأحد 10:00 · الأحد 11:00 · الاثنين 16:00'],
+  ['session', 'بدء الجلسة بالفيديو', 'قبل الموعد بدقائق يظهر زر «بدء الجلسة» في «جلساتي». الكاميرا والميكروفون يُطلبان مرة واحدة، والغرفة خاصة بكما فقط.', 'جلساتي ← بدء الجلسة ← الكاميرا والميكروفون ← إنهاء'],
+  ['notes', 'الملاحظات السريّة', 'بعد الجلسة تكتبون ملاحظاتكم السريريّة في شاشة خاصة بكم لا يراها المريض ولا فريق التسويق أو المالية.', 'جلساتي ← ملاحظات ← حفظ'],
+  ['wallet', 'المستحقات', 'تُظهر الإدارة رصيد جلساتكم المدفوعة بعد خصم العمولة، وتسجّل التحويلات إليكم.', 'جلسة 5000 دج ← عمولة 15% ← صافي 4250 دج'],
+];
+let done = [];
+const el = (id) => document.getElementById(id);
+function render() {
+  el('steps').innerHTML = STEPS.map(([k, t, p, m], i) => `
+    <div class="card step ${done.includes(k) ? 'done' : ''}">
+      <div class="num">${done.includes(k) ? '✓' : i + 1}</div>
+      <div style="flex:1"><h3>${t}</h3><p>${p}</p><div class="mock">${m}</div>
+      <button ${done.includes(k) ? 'class="ghost" disabled' : ''} data-k="${k}">${done.includes(k) ? 'تم' : 'فهمت'}</button></div>
+    </div>`).join('');
+  el('bar').style.width = (done.length / 7 * 100) + '%';
+  el('cnt').textContent = done.length + ' من 7';
+  if (done.length === 7) el('ctamsg').textContent = 'أحسنتم، أنهيتم الدليل. بقيت خطوة التسجيل.';
+}
+el('steps').addEventListener('click', async (e) => {
+  const k = e.target.dataset && e.target.dataset.k; if (!k) return;
+  const r = await fetch(API + '/step', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ step: k }) });
+  if (r.ok) { done = (await r.json()).done; render(); }
+});
+el('vid').addEventListener('error', () => { el('vcard').style.display = 'none'; });
+// رمز الدعوة يُحفظ بنفس صيغة shared_preferences على الويب ليقرأه التطبيق عند التسجيل
+try { if (T) localStorage.setItem('flutter.invite', JSON.stringify(T)); } catch (_) {}
+fetch(API).then((r) => r.ok ? r.json() : null).then((j) => {
+  if (!j) { el('hello').textContent = 'هذا الرابط غير صالح'; el('steps').innerHTML = ''; return; }
+  el('hello').textContent = 'أهلاً بكم، ' + j.name; done = j.steps || []; render();
+});
+</script>
+</body>
+</html>

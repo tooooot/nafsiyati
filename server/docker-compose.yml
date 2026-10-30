@@ -30,6 +30,7 @@ services:
     volumes:
       - ./api.js:/app/api.js:ro
       - ./staff.js:/app/staff.js:ro
+      - ./recruit.js:/app/recruit.js:ro
       - ./data:/app/data
     networks: [n8n_default]
     labels:

@@ -25,6 +25,9 @@ class Api {
     quizDone = p.getBool('quiz') ?? false;
   }
 
+  /// رمز دعوة التجنيد الذي حفظته صفحة /join/ في المتصفح (يربط التسجيل بالمستهدف).
+  static Future<String> invite() async => (await SharedPreferences.getInstance()).getString('invite') ?? '';
+
   static Future<void> markQuizDone() async {
     quizDone = true;
     await (await SharedPreferences.getInstance()).setBool('quiz', true);

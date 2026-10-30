@@ -22,7 +22,7 @@ class NafsiyatiApp extends StatelessWidget {
   const NafsiyatiApp({super.key});
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'نفسيتي',
+        title: 'صحتي النفسية',
         debugShowCheckedModeBanner: false,
         theme: buildTheme(),
         locale: const Locale('ar'),

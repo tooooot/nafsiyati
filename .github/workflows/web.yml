@@ -17,6 +17,10 @@ jobs:
       - name: Generate platform folders
         run: flutter create --platforms=web,android --project-name nafsiyati --org net.wardyat .
       - run: rm -rf test
+      - name: Brand web shell
+        run: |
+          sed -i 's#<title>nafsiyati</title>#<title>صحتي النفسية</title>#; s#content="nafsiyati"#content="صحتي النفسية"#; s#A new Flutter project.#منصة جلسات نفسية بالفيديو بخصوصية عالية#' web/index.html
+          sed -i 's#"nafsiyati"#"صحتي النفسية"#g; s#A new Flutter project.#منصة جلسات نفسية بالفيديو#' web/manifest.json
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos --no-fatal-warnings
       - run: flutter build web --release --base-href / --pwa-strategy=none --dart-define=DEV_LOGIN=true

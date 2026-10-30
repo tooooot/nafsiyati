@@ -24,7 +24,7 @@ jobs:
           perms=''.join(f'    <uses-permission android:name="android.permission.{p}"/>\n' for p in ['INTERNET','ACCESS_NETWORK_STATE','CAMERA','RECORD_AUDIO','MODIFY_AUDIO_SETTINGS','BLUETOOTH','BLUETOOTH_CONNECT','WAKE_LOCK'])
           feats='    <uses-feature android:name="android.hardware.camera" android:required="false"/>\n'
           s=s.replace('<application',perms+feats+'    <application',1)
-          s=re.sub(r'android:label="[^"]*"','android:label="نفسيتي"',s,count=1)
+          s=re.sub(r'android:label="[^"]*"','android:label="صحتي النفسية"',s,count=1)
           open(m,'w',encoding='utf-8').write(s)
           g='android/app/build.gradle.kts'; t=open(g,encoding='utf-8').read()
           t+='''

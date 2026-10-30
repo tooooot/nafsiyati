@@ -30,7 +30,7 @@ class _QuizScreenState extends State<QuizScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: const Text('أهلاً بك في نفسيتي', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        title: const Text('أهلاً بك في صحتي النفسية', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
         centerTitle: true,
         leading: i > 0 ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => setState(() => i--)) : null,
       ),
