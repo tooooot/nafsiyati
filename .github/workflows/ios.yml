@@ -1,0 +1,71 @@
+name: iOS → TestFlight (صحتي النفسية)
+
+# الأسرار: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (محتوى .p8), APPLE_TEAM_ID. التوقيع تلقائي عبر مفتاح App Store Connect.
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: 'ارفع إلى TestFlight (وإلا يُبنى فقط للتحقق)'
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.6
+          channel: stable
+          cache: true
+      - name: Generate native project
+        run: |
+          flutter create --platforms=ios --org net.wardyat --project-name nafsiyati .
+          rm -rf test
+          pip3 install -q pillow || pip3 install -q --break-system-packages pillow
+          python3 tools/prepare_ios.py
+          flutter pub get
+          flutter build ios --config-only --no-codesign
+          python3 tools/prepare_ios.py
+          ruby tools/ios_register.rb
+      - name: Install App Store Connect API key
+        if: ${{ inputs.upload }}
+        run: |
+          mkdir -p ~/private_keys
+          echo "${{ secrets.ASC_KEY_P8 }}" > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          sed -i '' "s/__TEAM_ID__/${TEAM_ID}/" ci/ExportOptions.plist
+      - name: Archive
+        if: ${{ inputs.upload }}
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | sed -E 's/version: *([0-9.]+).*/\1/')
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
+            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION="$((100 + ${{ github.run_number }}))" FLUTTER_BUILD_NUMBER="$((100 + ${{ github.run_number }}))" MARKETING_VERSION="$VERSION" \
+            -allowProvisioningUpdates -authenticationKeyPath ~/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            archive
+      - name: Export & upload to App Store Connect
+        if: ${{ inputs.upload }}
+        run: |
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
+            -exportOptionsPlist ci/ExportOptions.plist -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates -authenticationKeyPath ~/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+      - name: Build only (no signing) — verification
+        if: ${{ !inputs.upload }}
+        run: |
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+      - name: Remove key
+        if: always()
+        run: rm -rf ~/private_keys

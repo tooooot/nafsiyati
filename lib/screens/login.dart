@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../data/api.dart';
 import '../data/oauth.dart';
 import '../main.dart' show Boot, loginError;
@@ -15,6 +16,7 @@ class LoginScreen extends StatelessWidget {
   final String role;
   const LoginScreen({super.key, required this.role});
 
+  bool get _iosApp => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
   bool get _androidApp => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   /// التطبيق الأصلي (أندرويد): نافذة Google الأصلية ثم الرمز للخادم. الويب: إعادة توجيه.
@@ -43,7 +45,23 @@ class LoginScreen extends StatelessWidget {
         'prompt': 'select_account',
       }).query}');
 
-  void _apple() => goTo('https://appleid.apple.com/auth/authorize?${Uri(queryParameters: {
+  /// iOS الأصلي: نافذة Apple الأصلية ثم الرمز للخادم (الهوية = معرّف الحزمة). الويب: إعادة توجيه.
+  Future<void> _apple(BuildContext context) async {
+    if (kIsWeb) return _appleWeb();
+    try {
+      final c = await SignInWithApple.getAppleIDCredential(scopes: [AppleIDAuthorizationScopes.email, AppleIDAuthorizationScopes.fullName]);
+      final tok = c.identityToken;
+      if (tok == null) throw ApiError(0, 'لم يصل رمز الدخول من Apple');
+      final r = await Api.post('/auth/apple', {'id_token': tok});
+      await Api.save(newToken: r['token'] as String, newRole: role);
+      if (context.mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const Boot()), (r) => false);
+    } catch (e) {
+      if (e is SignInWithAppleAuthorizationException && e.code == AuthorizationErrorCode.canceled) return;
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذّر الدخول: ${e is ApiError ? e.message : e}')));
+    }
+  }
+
+  void _appleWeb() => goTo('https://appleid.apple.com/auth/authorize?${Uri(queryParameters: {
         'client_id': _appleService,
         'redirect_uri': '$_site/api/auth/apple/callback',
         'response_type': 'code id_token',
@@ -68,10 +86,10 @@ class LoginScreen extends StatelessWidget {
                 const Text('خصوصيتك محفوظة. لا نشارك بياناتك مع أحد.', style: TextStyle(color: C.grey), textAlign: TextAlign.center),
                 if (loginError != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(loginError!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center)),
                 const Spacer(),
-                ElevatedButton(onPressed: () => _google(context), child: const Text('المتابعة بحساب Google')),
+                if (!_iosApp) ElevatedButton(onPressed: () => _google(context), child: const Text('المتابعة بحساب Google')),
                 if (!_androidApp) ...[
-                const SizedBox(height: 12),
-                ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.black), onPressed: _apple, child: const Text('المتابعة بحساب Apple')),
+                if (!_iosApp) const SizedBox(height: 12),
+                ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.black), onPressed: () => _apple(context), child: const Text('المتابعة بحساب Apple')),
                 ],
                 const SizedBox(height: 24),
               ]),
