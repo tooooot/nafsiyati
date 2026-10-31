@@ -16,6 +16,40 @@ class LoginScreen extends StatelessWidget {
   final String role;
   const LoginScreen({super.key, required this.role});
 
+  static int _taps = 0;
+
+  /// دخول مراجعي المتاجر (مخفي): خمس نقرات على الشعار ← بريد وكلمة سر المراجعة. التعليمات في ملاحظات المراجعة.
+  void _logoTap(BuildContext context) {
+    if (++_taps < 5) return;
+    _taps = 0;
+    final email = TextEditingController(), pass = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('دخول المراجعة'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'البريد')),
+          TextField(controller: pass, obscureText: true, decoration: const InputDecoration(labelText: 'كلمة السر')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () async {
+              try {
+                final r = await Api.post('/auth/review', {'email': email.text.trim(), 'password': pass.text, 'role': role});
+                await Api.save(newToken: r['token'] as String, newRole: role);
+                if (context.mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const Boot()), (r) => false);
+              } catch (e) {
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e is ApiError ? e.message : 'تعذّر الدخول')));
+              }
+            },
+            child: const Text('دخول'),
+          ),
+        ],
+      ),
+    );
+  }
+
   bool get _iosApp => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
   bool get _androidApp => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
@@ -79,7 +113,7 @@ class LoginScreen extends StatelessWidget {
               child: Column(children: [
                 Row(children: [IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context))]),
                 const Spacer(),
-                Image.asset('assets/logo.png', width: 110),
+                GestureDetector(onTap: () => _logoTap(context), child: Image.asset('assets/logo.png', width: 110)),
                 const SizedBox(height: 16),
                 Text(role == 'patient' ? 'سجّل دخولك كمريض' : 'سجّل دخولك كمعالج', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 8),

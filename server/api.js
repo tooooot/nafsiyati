@@ -11,7 +11,7 @@ const iso = () => new Date().toISOString();
 const uid = () => crypto.randomBytes(8).toString('hex');
 
 /** يبني الخادم. getUser(token) → {id,name,email,roles}|null قابلة للحقن للاختبار. */
-function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https://nafsiyati.wardyat.net', placesKey = '', placesFetch, maxPerMin = 60 }) {
+function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https://nafsiyati.wardyat.net', placesKey = '', placesFetch, maxPerMin = 60, review }) {
   const db = new DatabaseSync(dbPath);
   db.exec(`
     create table if not exists therapists(user_id text primary key, name text, title text, bio text, topics text, languages text,
@@ -48,15 +48,43 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
   const S = staffMod.register({ R, q, all, run, E, uid, iso });
   const RC = recruitMod.register({ R, q, all, run, E, uid, iso, can: S.can, siteUrl, placesKey, fetchImpl: placesFetch });
 
+  // ---- حساب مراجعي المتاجر (Apple/Google): بريد+كلمة سر واحدة من البيئة، مفعّل فقط حين تُضبط review ----
+  // مستخدمان ثابتان (مريض ومعالج موثّق) يظهر المعالج للمريض المراجِع وحده، ولا يراه أي مريض حقيقي.
+  const RV = { patient: 'review-patient', therapist: 'review-therapist' };
+  const rvSign = (id, exp) => crypto.createHmac('sha256', review.secret).update(id + '.' + exp).digest('base64url');
+  const rvUser = (tok) => {
+    if (!review || !tok.startsWith('rv.')) return null;
+    const [, id, exp, sig] = tok.split('.');
+    if (!Object.values(RV).includes(id) || Date.now() > Number(exp)) return null;
+    const a = Buffer.from(sig || ''), b = Buffer.from(rvSign(id, exp)); if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    return { id, name: id === RV.patient ? 'مريض المراجعة' : 'معالج المراجعة', email: review.email, roles: [] };
+  };
+  const rvFails = []; const eq = (x, y) => { const a = Buffer.from(String(x)), b = Buffer.from(String(y)); return a.length === b.length && crypto.timingSafeEqual(a, b); };
+  const rvSeed = () => {
+    const now = new Date().toISOString();
+    run("insert or ignore into therapists values(?,?,?,?,?,?,?,?, 'verified', ?)", RV.therapist, 'د. معالج المراجعة', 'أخصائي نفسي', 'حساب مخصص لمراجعي المتاجر.', JSON.stringify(['القلق']), JSON.stringify(['العربية']), 3000, 'REVIEW', now);
+    const have = q('select count(*) n from slots where therapist_id=? and start>?', RV.therapist, now).n;
+    for (let i = have; i < 6; i++) { const d = new Date(Date.now() + (1 + i) * 86400e3); d.setUTCMinutes(0, 0, 0); run('insert or ignore into slots(id,therapist_id,start,minutes) values(?,?,?,50)', uid(), RV.therapist, d.toISOString()); }
+  };
+  R('POST', '/api/auth/review', async (c) => {
+    if (!review) throw E(404, 'غير موجود');
+    const now = Date.now(); while (rvFails.length && now - rvFails[0] > 60000) rvFails.shift();
+    if (rvFails.length >= 10) throw E(429, 'محاولات كثيرة');
+    if (!eq(String(c.body.email || '').toLowerCase(), review.email) || !eq(c.body.password || '', review.password)) { rvFails.push(now); throw E(401, 'بيانات غير صحيحة'); }
+    const id = c.body.role === 'therapist' ? RV.therapist : RV.patient; rvSeed();
+    const exp = now + 12 * 3600e3;
+    return { token: 'rv.' + id + '.' + exp + '.' + rvSign(id, exp), user: { id, name: id === RV.patient ? 'مريض المراجعة' : 'معالج المراجعة', email: review.email } };
+  });
+
   // ---- عام ----
   R('GET', '/api/health', async () => ({ ok: 1 }));
 
-  R('GET', '/api/therapists', async () => {
+  R('GET', '/api/therapists', async (c) => {
     const now = iso();
-    return all("select * from therapists where status='verified' order by name").map((t) => ({ ...th(t), slots: all('select id,start,minutes from slots where therapist_id=? and booked=0 and start>? order by start limit 6', t.user_id, now) }));
+    return all("select * from therapists where status='verified' and (user_id!=? or ?) order by name", RV.therapist, c.user && c.user.id === RV.patient ? 1 : 0).map((t) => ({ ...th(t), slots: all('select id,start,minutes from slots where therapist_id=? and booked=0 and start>? order by start limit 6', t.user_id, now) }));
   });
   R('GET', '/api/therapists/:id', async (c) => {
-    const t = q("select * from therapists where user_id=? and status='verified'", c.p.id); if (!t) throw E(404, 'غير موجود');
+    const t = q("select * from therapists where user_id=? and status='verified'", c.p.id); if (!t || (t.user_id === RV.therapist && !(c.user && c.user.id === RV.patient))) throw E(404, 'غير موجود');
     return { ...th(t), slots: all('select id,start,minutes from slots where therapist_id=? and booked=0 and start>? order by start limit 60', t.user_id, iso()) };
   });
 
@@ -101,6 +129,7 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
     c.need(); const s = q('select * from slots where id=?', String(c.body.slotId || '')); if (!s) throw E(404, 'الموعد غير موجود');
     const t = q("select * from therapists where user_id=? and status='verified'", s.therapist_id); if (!t) throw E(404, 'المعالج غير متاح');
     if (t.user_id === c.user.id) throw E(400, 'لا يمكنك حجز موعد عند نفسك');
+    if (t.user_id === RV.therapist && c.user.id !== RV.patient) throw E(404, 'المعالج غير متاح');
     if (new Date(s.start) < new Date()) throw E(400, 'الموعد انتهى');
     let price = t.price_dzd, discount = 0, vcode = null, v = null;
     if (c.body.voucher) { v = S.voucherFor(c.body.voucher, c.user.id); vcode = v.code; discount = Math.round(price * v.percent / 100); price -= discount; }
@@ -181,7 +210,7 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
         if (!hit) return send(res, 404, { error: 'غير موجود' });
         let body = {}; if (raw) { if (/x-www-form-urlencoded/.test(req.headers['content-type'] || '')) body = Object.fromEntries(new URLSearchParams(raw)); else { try { body = JSON.parse(raw); } catch { throw E(400, 'JSON غير صالح'); } } }
         const tok = (req.headers.authorization || '').replace(/^Bearer /, '');
-        const user = tok ? await getUser(tok) : null;
+        const user = tok ? (rvUser(tok) || await getUser(tok)) : null;
         if (user) {
           run('insert into seen_users(id,email,name,created,last_seen) values(?,?,?,?,?) on conflict(id) do update set email=excluded.email,name=excluded.name,last_seen=excluded.last_seen', user.id, String(user.email || '').toLowerCase(), String(user.name || '').slice(0, 80), iso(), iso());
           if (q('select suspended from seen_users where id=?', user.id).suspended) throw E(403, 'الحساب موقوف');
@@ -213,7 +242,8 @@ if (require.main === module) {
     const r = await fetch('https://core.wardyat.net/v1/auth/' + provider, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-App-Key': env.CORE_APP_KEY }, body: JSON.stringify({ id_token }) });
     return r.ok ? r.json() : null;
   };
-  const { server } = createApp({ dbPath: '/app/data/nafsiyati.db', getUser, social, placesKey: env.PLACES_API_KEY || '', lk: { key: env.LIVEKIT_API_KEY, secret: env.LIVEKIT_API_SECRET, url: env.LIVEKIT_URL || 'wss://lk.wardyat.net', demo: env.DEMO_VIDEO === '1' } });
+  const review = env.REVIEW_EMAIL && env.REVIEW_PASSWORD ? { email: env.REVIEW_EMAIL.toLowerCase(), password: env.REVIEW_PASSWORD, secret: crypto.createHash('sha256').update('rv|' + env.REVIEW_PASSWORD + '|' + env.CORE_APP_KEY).digest('hex') } : undefined;
+  const { server } = createApp({ dbPath: '/app/data/nafsiyati.db', getUser, social, review, placesKey: env.PLACES_API_KEY || '', lk: { key: env.LIVEKIT_API_KEY, secret: env.LIVEKIT_API_SECRET, url: env.LIVEKIT_URL || 'wss://lk.wardyat.net', demo: env.DEMO_VIDEO === '1' } });
   server.listen(3000, () => console.log('nafsiyati-api :3000'));
 }
 module.exports = { createApp };

@@ -84,3 +84,30 @@ test('الدخول: يمرّر الرمز للنواة ويرفض الباطل،
   const e = await fetch(base + '/api/auth/apple/callback', { method: 'POST', redirect: 'manual', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'error=user_cancelled_authorize&state=patient' });
   assert.equal(e.headers.get('location'), 'https://nafsiyati.wardyat.net/#state=patient');
 });
+
+// ---- حساب مراجعي المتاجر ----
+test('review login: مغلق بلا إعداد، ويعمل بالبيانات الصحيحة ويخفي معالج المراجعة عن الحقيقيين', async () => {
+  const mk = (review) => createApp({ review, getUser: async (t) => (t === 'real' ? { id: 'u-real', name: 'مريض حقيقي', email: 'r@x.y', roles: [] } : null), lk: { key: 'k', secret: 's', url: 'wss://x' } });
+  const off = mk(undefined); await new Promise((r) => off.server.listen(0, r));
+  let r = await fetch(`http://127.0.0.1:${off.server.address().port}/api/auth/review`, { method: 'POST', body: JSON.stringify({ email: 'a', password: 'b' }) });
+  assert.equal(r.status, 404); off.server.close();
+
+  const on = mk({ email: 'reviewer@wardyat.net', password: 'pw-test-123', secret: 'sec' }); await new Promise((r) => on.server.listen(0, r));
+  const base = `http://127.0.0.1:${on.server.address().port}`;
+  const post = (p, b, tok) => fetch(base + p, { method: 'POST', headers: tok ? { Authorization: 'Bearer ' + tok } : {}, body: JSON.stringify(b) });
+  r = await post('/api/auth/review', { email: 'reviewer@wardyat.net', password: 'غلط' }); assert.equal(r.status, 401);
+  r = await post('/api/auth/review', { email: 'Reviewer@wardyat.net', password: 'pw-test-123', role: 'patient' }); assert.equal(r.status, 200);
+  const pat = await r.json();
+  const list = await (await fetch(base + '/api/therapists', { headers: { Authorization: 'Bearer ' + pat.token } })).json();
+  assert.equal(list.length, 1); assert.ok(list[0].slots.length >= 1);
+  assert.equal((await (await fetch(base + '/api/therapists', { headers: { Authorization: 'Bearer real' } })).json()).length, 0);
+  assert.equal((await fetch(base + '/api/therapists')).status === 200 && (await (await fetch(base + '/api/therapists')).json()).length, 0);
+  r = await post('/api/appointments', { slotId: list[0].slots[0].id }, pat.token); assert.equal(r.status, 200);
+  r = await post('/api/appointments', { slotId: list[0].slots[1].id }, 'real'); assert.equal(r.status, 404);
+  const th = await (await post('/api/auth/review', { email: 'reviewer@wardyat.net', password: 'pw-test-123', role: 'therapist' })).json();
+  const mine = await (await fetch(base + '/api/appointments', { headers: { Authorization: 'Bearer ' + th.token } })).json();
+  assert.equal(mine.length, 1);
+  const forged = 'rv.review-therapist.' + (Date.now() + 1e6) + '.AAAA';
+  assert.equal((await fetch(base + '/api/appointments', { headers: { Authorization: 'Bearer ' + forged } })).status, 401);
+  on.server.close();
+});
