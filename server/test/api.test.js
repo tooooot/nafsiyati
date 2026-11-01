@@ -111,3 +111,9 @@ test('review login: مغلق بلا إعداد، ويعمل بالبيانات �
   assert.equal((await fetch(base + '/api/appointments', { headers: { Authorization: 'Bearer ' + forged } })).status, 401);
   on.server.close();
 });
+
+test('حذف الحساب: يتطلب دخولاً ويحذف بيانات المستخدم', async () => {
+  assert.equal((await call('DELETE', '/api/me')).s, 401);
+  const r = await call('DELETE', '/api/me', 'tPat2');
+  assert.equal(r.s, 200); assert.equal(r.j.ok, 1);
+});

@@ -11,7 +11,7 @@ const iso = () => new Date().toISOString();
 const uid = () => crypto.randomBytes(8).toString('hex');
 
 /** يبني الخادم. getUser(token) → {id,name,email,roles}|null قابلة للحقن للاختبار. */
-function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https://nafsiyati.wardyat.net', placesKey = '', placesFetch, maxPerMin = 60, review }) {
+function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https://nafsiyati.wardyat.net', placesKey = '', placesFetch, maxPerMin = 60, review, deleteCore }) {
   const db = new DatabaseSync(dbPath);
   db.exec(`
     create table if not exists therapists(user_id text primary key, name text, title text, bio text, topics text, languages text,
@@ -99,6 +99,27 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
   R('POST', '/api/auth/apple/callback', async (c) => {
     const st = c.body.state === 'therapist' ? 'therapist' : 'patient', t = String(c.body.id_token || '');
     return { redirect: siteUrl + '/#' + (t && !c.body.error ? 'apple_id_token=' + encodeURIComponent(t) + '&' : '') + 'state=' + st };
+  });
+
+  // حذف الحساب نهائياً (شرط Apple 5.1.1(v)): بيانات المجال هنا ثم حساب الدخول في wardyat-core.
+  R('DELETE', '/api/me', async (c) => {
+    c.need(); const id = c.user.id;
+    if (Object.values(RV).includes(id)) return { ok: 1, review: 1 }; // حسابا المراجعة ثابتان ومشتركان
+    const now = iso();
+    for (const a of all("select * from appointments where patient_id=? and status='booked' and start>?", id, now)) run('update slots set booked=0 where id=?', a.slot_id);
+    run("update appointments set status='cancelled' where therapist_id=? and status='booked' and start>?", id, now);
+    run('delete from notes where therapist_id=?', id);
+    run('delete from slots where therapist_id=?', id);
+    run('delete from therapist_certs where user_id=?', id);
+    run('delete from therapists where user_id=?', id);
+    run("update appointments set patient_id='deleted', patient_name='' where patient_id=?", id);
+    run("update appointments set therapist_id='deleted' where therapist_id=?", id);
+    run('delete from voucher_use where user_id=?', id);
+    if (c.user.email) run('delete from staff where email=?', String(c.user.email).toLowerCase());
+    run('update rc_targets set user_id=null where user_id=?', id);
+    run('delete from seen_users where id=?', id);
+    if (deleteCore) { const ok = await deleteCore(c.token); if (!ok) throw E(502, 'تعذّر حذف حساب الدخول، حاول لاحقاً'); }
+    return { ok: 1 };
   });
 
   R('GET', '/api/me', async (c) => { c.need(); const t = q('select * from therapists where user_id=?', c.user.id); return { user: { id: c.user.id, name: c.user.name, email: c.user.email, isAdmin: S.can(c.user, 'therapists'), perms: S.perms(c.user) }, therapist: t ? { ...th(t), licenseNo: t.license_no } : null }; });
@@ -215,7 +236,7 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
           run('insert into seen_users(id,email,name,created,last_seen) values(?,?,?,?,?) on conflict(id) do update set email=excluded.email,name=excluded.name,last_seen=excluded.last_seen', user.id, String(user.email || '').toLowerCase(), String(user.name || '').slice(0, 80), iso(), iso());
           if (q('select suspended from seen_users where id=?', user.id).suspended) throw E(403, 'الحساب موقوف');
         }
-        const c = { p, body, query: Object.fromEntries(u.searchParams), user, need() { if (!user) throw E(401, 'سجّل الدخول أولاً'); } };
+        const c = { p, body, token: tok, query: Object.fromEntries(u.searchParams), user, need() { if (!user) throw E(401, 'سجّل الدخول أولاً'); } };
         const out = await hit.fn(c);
         if (out && out.redirect) { res.writeHead(302, { Location: out.redirect, 'Cache-Control': 'no-store' }); return res.end(); }
         send(res, 200, out);
@@ -242,8 +263,9 @@ if (require.main === module) {
     const r = await fetch('https://core.wardyat.net/v1/auth/' + provider, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-App-Key': env.CORE_APP_KEY }, body: JSON.stringify({ id_token }) });
     return r.ok ? r.json() : null;
   };
+  const deleteCore = async (token) => { const r = await fetch('https://core.wardyat.net/v1/me', { method: 'DELETE', headers: { Authorization: 'Bearer ' + token, 'X-App-Key': env.CORE_APP_KEY } }); return r.ok; };
   const review = env.REVIEW_EMAIL && env.REVIEW_PASSWORD ? { email: env.REVIEW_EMAIL.toLowerCase(), password: env.REVIEW_PASSWORD, secret: crypto.createHash('sha256').update('rv|' + env.REVIEW_PASSWORD + '|' + env.CORE_APP_KEY).digest('hex') } : undefined;
-  const { server } = createApp({ dbPath: '/app/data/nafsiyati.db', getUser, social, review, placesKey: env.PLACES_API_KEY || '', lk: { key: env.LIVEKIT_API_KEY, secret: env.LIVEKIT_API_SECRET, url: env.LIVEKIT_URL || 'wss://lk.wardyat.net', demo: env.DEMO_VIDEO === '1' } });
+  const { server } = createApp({ dbPath: '/app/data/nafsiyati.db', getUser, social, review, deleteCore, placesKey: env.PLACES_API_KEY || '', lk: { key: env.LIVEKIT_API_KEY, secret: env.LIVEKIT_API_SECRET, url: env.LIVEKIT_URL || 'wss://lk.wardyat.net', demo: env.DEMO_VIDEO === '1' } });
   server.listen(3000, () => console.log('nafsiyati-api :3000'));
 }
 module.exports = { createApp };
