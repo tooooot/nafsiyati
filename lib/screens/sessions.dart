@@ -65,6 +65,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
               // المنتهية (بعد النهاية بعشر دقائق) لا تُعرض؛ المتاحة للدخول أولاً ثم بحسب الوقت
               final list = s.data!.where((a) => a.status == 'booked' && nowU.isBefore(a.end.add(const Duration(minutes: 10)))).toList()
                 ..sort((x, y) => x.joinable == y.joinable ? x.start.compareTo(y.start) : (x.joinable ? -1 : 1));
+              final past = s.data!.where((a) => !list.contains(a)).toList()..sort((x, y) => y.start.compareTo(x.start));
               return ListView(padding: const EdgeInsets.all(16), children: [
                 const Text('جلساتي', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 16),
@@ -90,6 +91,30 @@ class _SessionsScreenState extends State<SessionsScreen> {
                       ]),
                     ]),
                   ),
+                if (past.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const Text('الجلسات السابقة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 10),
+                  for (final a in past)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+                      child: Row(children: [
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(widget.asTherapist ? (a.patient ?? 'مريض') : (a.therapist ?? ''), style: const TextStyle(fontWeight: FontWeight.w700)),
+                            Text('${fmtTime(a.start)} • ${a.minutes} دقيقة', style: const TextStyle(color: C.grey, fontSize: 12)),
+                          ]),
+                        ),
+                        Text(a.status == 'cancelled' ? 'ملغاة' : 'منتهية', style: TextStyle(fontSize: 12, color: a.status == 'cancelled' ? Colors.red : C.green)),
+                        if (widget.asTherapist && a.status != 'cancelled') ...[
+                          const SizedBox(width: 8),
+                          OutlinedButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => NotesScreen(a.id, a.patient ?? 'مريض'))), child: const Text('ملاحظات')),
+                        ],
+                      ]),
+                    ),
+                ],
               ]);
             },
           ),
