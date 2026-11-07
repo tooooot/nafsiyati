@@ -1,0 +1,30 @@
+1) PURPOSE AND AUDIENCE
+"Sehhati Alnafsiyah" (صحتي النفسية) connects patients with licensed psychotherapists for private, scheduled video sessions. Problem solved: finding a verified therapist and booking a private session without leaving the phone. Audience: adults seeking psychological support (patients) and licensed therapists (providers). The app is NOT an emergency service and does not give diagnoses; this is stated in the app and store listing.
+
+2) HOW TO ACCESS (review login, no Apple ID needed)
+Public users sign in with Sign in with Apple (or Google). For review:
+a. On the welcome screen choose the tab "مريض" (Patient) or "معالج" (Therapist), tap "ابدأ".
+b. On the sign-in screen tap the small grey link "دخول المراجعين (للمتاجر)" at the bottom (or tap the lotus logo 5 times); the dialog "دخول المراجعة" opens.
+c. Enter reviewer@wardyat.net / uf8JFp7QPawstYNu, tap "دخول".
+Patient: tab "المعالجون" > pick the review therapist > pick a slot > "احجز الجلسة" > "جلساتي". Past sessions appear under "الجلسات السابقة".
+Therapist: manage available slots, sessions and private notes, profile and license.
+Video sessions open 10 minutes before the appointment (camera + microphone permission needed). Sessions are NOT recorded or stored.
+ACCOUNT DELETION: "حسابي" > "حذف الحساب" deletes the account and its data (also described at https://nafsiyati.wardyat.net/support/).
+USER-GENERATED CONTENT: none is shared between users (no feed/chat/public profiles). Therapist notes are private to the therapist. No reporting/blocking mechanism is therefore needed.
+PAID CONTENT: no in-app purchases. Session fees are settled outside the app (manual confirmation by the platform admin); no payment processor is integrated.
+
+3) EXTERNAL SERVICES
+- Own server (nafsiyati.wardyat.net, Node.js) for accounts, therapists, bookings.
+- wardyat-core (core.wardyat.net) for authentication via Sign in with Apple / Google.
+- LiveKit (self-hosted, lk.wardyat.net) for WebRTC video.
+No AI services, no analytics/ad SDKs, no tracking.
+
+4) REGIONS
+The app functions identically in all regions. Therapist profiles list the therapist's country (initial pilot: Algeria, with Tunisia and Saudi Arabia supported). UI is Arabic (RTL).
+
+5) REGULATED INDUSTRY
+Mental-health services. Every therapist must submit a license number and a license certificate image; the admin reviews and verifies it before the therapist becomes visible to patients. The platform does not employ therapists and does not provide medical advice itself. No protected third-party material.
+
+6) SCREEN RECORDING
+Screen recording of the full flow (launch > review login > booking > video session > past sessions > account deletion screen): VIDEO_URL_HERE
+Note: the recording was made on a physical Android device running the Android build of the same Flutter codebase, because the developer does not currently own an iPhone. Screens, flows and backend are identical; the only iOS-specific difference is the sign-in method (Sign in with Apple). The review login above works the same on iOS. We are happy to provide an iPhone recording on request.
