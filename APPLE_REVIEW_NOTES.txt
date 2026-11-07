@@ -4,7 +4,7 @@
 2) HOW TO ACCESS (review login, no Apple ID needed)
 Public users sign in with Sign in with Apple (or Google). For review:
 a. On the welcome screen choose the tab "مريض" (Patient) or "معالج" (Therapist), tap "ابدأ".
-b. On the sign-in screen tap the small grey link "دخول المراجعين (للمتاجر)" at the bottom (or tap the lotus logo 5 times); the dialog "دخول المراجعة" opens.
+b. On the sign-in screen tap the lotus logo 5 times quickly; the dialog "دخول المراجعة" opens.
 c. Enter reviewer@wardyat.net / uf8JFp7QPawstYNu, tap "دخول".
 Patient: tab "المعالجون" > pick the review therapist > pick a slot > "احجز الجلسة" > "جلساتي". Past sessions appear under "الجلسات السابقة".
 Therapist: manage available slots, sessions and private notes, profile and license.
