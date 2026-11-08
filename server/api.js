@@ -70,8 +70,8 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
     if (!review) throw E(404, 'غير موجود');
     const now = Date.now(); while (rvFails.length && now - rvFails[0] > 60000) rvFails.shift();
     if (rvFails.length >= 10) throw E(429, 'محاولات كثيرة');
-    const norm = (v) => String(v || '').trim().toLowerCase(); // لوحات المفاتيح تضيف مسافة/حرفاً كبيراً تلقائياً
-    if (!eq(norm(c.body.email), review.email) || !eq(norm(c.body.password), norm(review.password))) { rvFails.push(now); throw E(401, 'بيانات غير صحيحة'); }
+    const norm = (v) => String(v || '').normalize('NFKC').replace(/[٠-٩]/g, (d) => d.charCodeAt(0) - 0x660).replace(/[۰-۹]/g, (d) => d.charCodeAt(0) - 0x6f0).replace(/[\s\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, '').toLowerCase(); // لوحات المفاتيح تضيف مسافة/حرفاً كبيراً تلقائياً
+    if (!eq(norm(c.body.email), review.email) || !eq(norm(c.body.password), norm(review.password))) { rvFails.push(now); console.log('review-login-fail', JSON.stringify({ eLen: String(c.body.email || '').length, pLen: String(c.body.password || '').length, eNonAscii: /[^\x00-\x7f]/.test(String(c.body.email || '')), pNonAscii: /[^\x00-\x7f]/.test(String(c.body.password || '')) })); throw E(401, 'بيانات غير صحيحة'); }
     const id = c.body.role === 'therapist' ? RV.therapist : RV.patient; rvSeed();
     const exp = now + 12 * 3600e3;
     return { token: 'rv.' + id + '.' + exp + '.' + rvSign(id, exp), user: { id, name: id === RV.patient ? 'مريض المراجعة' : 'معالج المراجعة', email: review.email } };
