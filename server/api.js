@@ -70,7 +70,8 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
     if (!review) throw E(404, 'غير موجود');
     const now = Date.now(); while (rvFails.length && now - rvFails[0] > 60000) rvFails.shift();
     if (rvFails.length >= 10) throw E(429, 'محاولات كثيرة');
-    if (!eq(String(c.body.email || '').toLowerCase(), review.email) || !eq(c.body.password || '', review.password)) { rvFails.push(now); throw E(401, 'بيانات غير صحيحة'); }
+    const norm = (v) => String(v || '').trim().toLowerCase(); // لوحات المفاتيح تضيف مسافة/حرفاً كبيراً تلقائياً
+    if (!eq(norm(c.body.email), review.email) || !eq(norm(c.body.password), norm(review.password))) { rvFails.push(now); throw E(401, 'بيانات غير صحيحة'); }
     const id = c.body.role === 'therapist' ? RV.therapist : RV.patient; rvSeed();
     const exp = now + 12 * 3600e3;
     return { token: 'rv.' + id + '.' + exp + '.' + rvSign(id, exp), user: { id, name: id === RV.patient ? 'مريض المراجعة' : 'معالج المراجعة', email: review.email } };
