@@ -19,12 +19,14 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
     create table if not exists slots(id text primary key, therapist_id text, start text, minutes integer default 50, booked integer default 0);
     create table if not exists appointments(id text primary key, therapist_id text, patient_id text, patient_name text, slot_id text,
       start text, minutes integer, price_dzd integer, status text default 'booked', paid integer default 0, created text);
+    create table if not exists ratings(appointment_id text primary key, patient_id text, therapist_id text, stars integer, note text, created text);
     create table if not exists notes(appointment_id text primary key, therapist_id text, body text, updated text);
     create table if not exists therapist_certs(user_id text primary key, mime text, data blob, created text);
     create index if not exists ix_slots_t on slots(therapist_id, start);
     create index if not exists ix_apt_p on appointments(patient_id);
     create index if not exists ix_apt_t on appointments(therapist_id);
   `);
+  try { db.exec('alter table appointments add column ended_at text'); } catch (e) { /* موجود */ }
   staffMod.schema(db);
   recruitMod.schema(db);
   const q = (s, ...a) => db.prepare(s).get(...a);
@@ -166,7 +168,7 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
     } catch (e) { db.exec('rollback'); throw e; }
     return { id, start: s.start, minutes: s.minutes, priceDzd: price, discountDzd: discount, therapist: th(t).name };
   });
-  const aptOut = (a, viewer) => ({ id: a.id, start: a.start, minutes: a.minutes, status: a.status, priceDzd: a.price_dzd, paid: !!a.paid, therapistId: a.therapist_id, therapist: (q('select name from therapists where user_id=?', a.therapist_id) || {}).name, ...(viewer === a.therapist_id ? { patient: a.patient_name } : {}) });
+  const aptOut = (a, viewer) => ({ id: a.id, start: a.start, minutes: a.minutes, status: a.status, priceDzd: a.price_dzd, paid: !!a.paid, therapistId: a.therapist_id, therapist: (q('select name from therapists where user_id=?', a.therapist_id) || {}).name, ...(viewer === a.therapist_id ? { patient: a.patient_name } : {}) , endedAt: a.ended_at || null, ...(viewer === a.patient_id ? { rated: !!q('select 1 from ratings where appointment_id=?', a.id) } : {}) });
   R('GET', '/api/appointments', async (c) => { c.need(); return all('select * from appointments where patient_id=? or therapist_id=? order by start desc limit 200', c.user.id, c.user.id).map((a) => aptOut(a, c.user.id)); });
   R('POST', '/api/appointments/:id/cancel', async (c) => {
     c.need(); const a = q('select * from appointments where id=?', c.p.id);
@@ -176,6 +178,26 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
     if (new Date(a.start) - Date.now() < 3600e3 && a.patient_id === c.user.id) throw E(409, 'الإلغاء قبل الموعد بأقل من ساعة غير متاح');
     run("update appointments set status='cancelled' where id=?", a.id); run('update slots set booked=0 where id=?', a.slot_id);
     if (a.voucher) { run('delete from voucher_use where code=? and appointment_id=?', a.voucher, a.id); run('update vouchers set used=max(used-1,0) where code=?', a.voucher); }
+    return { ok: 1 };
+  });
+
+  // ---- نهاية الجلسة: يسجّلها أول من يضغط «إنهاء» (الحالة تبقى booked كي تعمل المالية كما هي؛ endedAt هو علامة الانتهاء) ----
+  R('POST', '/api/appointments/:id/end', async (c) => {
+    c.need(); const a = q('select * from appointments where id=?', c.p.id);
+    if (!a || (a.patient_id !== c.user.id && a.therapist_id !== c.user.id)) throw E(404, 'غير موجود');
+    if (a.status !== 'booked') throw E(409, 'الموعد غير فعّال');
+    if (Date.now() < new Date(a.start).getTime() - 10 * 60e3) throw E(425, 'الجلسة لم تبدأ بعد');
+    if (!a.ended_at) run('update appointments set ended_at=? where id=?', new Date().toISOString(), a.id);
+    return aptOut(q('select * from appointments where id=?', a.id), c.user.id);
+  });
+  // ---- تقييم المريض للجلسة: يكتبه المريض فقط ولا يراه إلا المخوَّلون بالإدارة (لا المعالج ولا غيره) ----
+  R('POST', '/api/appointments/:id/rating', async (c) => {
+    c.need(); const a = q('select * from appointments where id=? and patient_id=?', c.p.id, c.user.id);
+    if (!a) throw E(404, 'غير موجود');
+    if (!a.ended_at) throw E(409, 'التقييم بعد انتهاء الجلسة');
+    const stars = Number(c.body.stars); if (!Number.isInteger(stars) || stars < 1 || stars > 5) throw E(400, 'التقييم من 1 إلى 5');
+    const note = String(c.body.note || '').trim().slice(0, 500);
+    run('insert into ratings values(?,?,?,?,?,?) on conflict(appointment_id) do update set stars=excluded.stars, note=excluded.note', a.id, a.patient_id, a.therapist_id, stars, note, new Date().toISOString());
     return { ok: 1 };
   });
 

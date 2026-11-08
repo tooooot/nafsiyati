@@ -3,6 +3,7 @@ import '../data/api.dart';
 import '../data/models.dart';
 import '../theme.dart';
 import 'call.dart';
+import 'end_session.dart';
 import 'notes.dart';
 import 'therapists.dart';
 
@@ -26,10 +27,21 @@ class _SessionsScreenState extends State<SessionsScreen> {
 
   Future<void> _join(Appointment a) async {
     try {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => CallScreen(connect: () async {
+      final ended = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => CallScreen(connect: () async {
         final r = await Api.post('/appointments/${a.id}/video-token');
         return (url: '${r['url']}', token: '${r['token']}');
       })));
+      if (!mounted) return;
+      if (ended == true) {
+        try {
+          await Api.post('/appointments/${a.id}/end');
+        } on ApiError catch (e) {
+          _snack(e.message);
+        }
+        if (!mounted) return;
+        await Navigator.push(context, MaterialPageRoute(builder: (_) => EndSessionScreen(a, asTherapist: widget.asTherapist)));
+      }
+      await _refresh();
     } on ApiError catch (e) {
       _snack(e.message);
     }
@@ -63,7 +75,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
               if (s.hasError) return ErrorBox('${s.error}', onRetry: _refresh);
               final nowU = DateTime.now().toUtc();
               // المنتهية (بعد النهاية بعشر دقائق) لا تُعرض؛ المتاحة للدخول أولاً ثم بحسب الوقت
-              final list = s.data!.where((a) => a.status == 'booked' && nowU.isBefore(a.end.add(const Duration(minutes: 10)))).toList()
+              final list = s.data!.where((a) => a.status == 'booked' && a.endedAt == null && nowU.isBefore(a.end.add(const Duration(minutes: 10)))).toList()
                 ..sort((x, y) => x.joinable == y.joinable ? x.start.compareTo(y.start) : (x.joinable ? -1 : 1));
               final past = s.data!.where((a) => !list.contains(a)).toList()..sort((x, y) => y.start.compareTo(x.start));
               return ListView(padding: const EdgeInsets.all(16), children: [
@@ -108,6 +120,10 @@ class _SessionsScreenState extends State<SessionsScreen> {
                           ]),
                         ),
                         Text(a.status == 'cancelled' ? 'ملغاة' : 'منتهية', style: TextStyle(fontSize: 12, color: a.status == 'cancelled' ? Colors.red : C.green)),
+                        if (!widget.asTherapist && a.endedAt != null && !a.rated) ...[
+                          const SizedBox(width: 8),
+                          OutlinedButton(onPressed: () async { await Navigator.push(context, MaterialPageRoute(builder: (_) => EndSessionScreen(a, asTherapist: false))); await _refresh(); }, child: const Text('قيّم')),
+                        ],
                         if (widget.asTherapist && a.status != 'cancelled') ...[
                           const SizedBox(width: 8),
                           OutlinedButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => NotesScreen(a.id, a.patient ?? 'مريض'))), child: const Text('ملاحظات')),

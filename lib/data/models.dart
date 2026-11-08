@@ -24,13 +24,16 @@ class Appointment {
   final String? therapist, patient;
   final DateTime start; // UTC
   final int minutes, priceDzd;
-  Appointment(this.id, this.status, this.therapist, this.patient, this.start, this.minutes, this.priceDzd);
-  factory Appointment.fromJson(Map j) => Appointment(j['id'], j['status'], j['therapist'], j['patient'], DateTime.parse(j['start']), j['minutes'] ?? 50, j['priceDzd'] ?? 0);
+  final DateTime? endedAt; // انتهت فعلاً (ضغط أحد الطرفين «إنهاء»)
+  final bool rated; // للمريض فقط: قيّم هذه الجلسة
+  Appointment(this.id, this.status, this.therapist, this.patient, this.start, this.minutes, this.priceDzd, {this.endedAt, this.rated = false});
+  factory Appointment.fromJson(Map j) => Appointment(j['id'], j['status'], j['therapist'], j['patient'], DateTime.parse(j['start']), j['minutes'] ?? 50, j['priceDzd'] ?? 0,
+      endedAt: j['endedAt'] == null ? null : DateTime.parse(j['endedAt']), rated: j['rated'] == true);
   DateTime get end => start.add(Duration(minutes: minutes));
   /// نافذة الدخول: قبل البدء بعشر دقائق حتى بعد النهاية بعشر دقائق (يطبّقها الخادم أيضاً).
   bool get joinable {
     final n = DateTime.now().toUtc();
-    return status == 'booked' && n.isAfter(start.subtract(const Duration(minutes: 10))) && n.isBefore(end.add(const Duration(minutes: 10)));
+    return status == 'booked' && endedAt == null && n.isAfter(start.subtract(const Duration(minutes: 10))) && n.isBefore(end.add(const Duration(minutes: 10)));
   }
 }
 

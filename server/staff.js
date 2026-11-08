@@ -46,8 +46,8 @@ function register({ R, q, all, run, E, uid, iso }) {
   });
   R('GET', '/api/admin/appointments', async (c) => {
     need(c, 'appointments');
-    return all('select a.id,a.start,a.minutes,a.status,a.price_dzd,a.paid,a.patient_name,t.name therapist from appointments a left join therapists t on t.user_id=a.therapist_id order by a.start desc limit 200')
-      .map((a) => ({ id: a.id, start: a.start, minutes: a.minutes, status: a.status, priceDzd: a.price_dzd, paid: !!a.paid, patient: a.patient_name, therapist: a.therapist }));
+    return all('select a.id,a.start,a.minutes,a.status,a.ended_at,a.price_dzd,a.paid,a.patient_name,t.name therapist,r.stars,r.note from appointments a left join therapists t on t.user_id=a.therapist_id left join ratings r on r.appointment_id=a.id order by a.start desc limit 200')
+      .map((a) => ({ id: a.id, start: a.start, minutes: a.minutes, status: a.status, priceDzd: a.price_dzd, paid: !!a.paid, patient: a.patient_name, therapist: a.therapist, endedAt: a.ended_at || null, stars: a.stars || null, ratingNote: a.note || '' }));
   });
 
   // ---- أعضاء الإدارة والصلاحيات ----

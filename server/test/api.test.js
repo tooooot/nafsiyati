@@ -117,3 +117,25 @@ test('حذف الحساب: يتطلب دخولاً ويحذف بيانات ال�
   const r = await call('DELETE', '/api/me', 'tPat2');
   assert.equal(r.s, 200); assert.equal(r.j.ok, 1);
 });
+
+test('نهاية الجلسة والتقييم: المريض يقيّم والإدارة وحدها ترى', async () => {
+  const slot = (await call('POST', '/api/therapist/slots', 'tTher', { start: inMin(3) })).j;
+  const apt = (await call('POST', '/api/appointments', 'tPat', { slotId: slot.id })).j;
+  assert.ok(apt.id);
+  assert.equal((await call('POST', `/api/appointments/${apt.id}/rating`, 'tPat', { stars: 5 })).s, 409, 'لا تقييم قبل الانتهاء');
+  assert.equal((await call('POST', `/api/appointments/${apt.id}/end`, 'tPat2')).s, 404, 'غريب لا ينهي');
+  const ended = await call('POST', `/api/appointments/${apt.id}/end`, 'tTher');
+  assert.equal(ended.s, 200); assert.ok(ended.j.endedAt);
+  assert.equal((await call('POST', `/api/appointments/${apt.id}/end`, 'tPat')).j.endedAt, ended.j.endedAt, 'الإنهاء متكرر بلا تغيير');
+  assert.equal((await call('POST', `/api/appointments/${apt.id}/rating`, 'tTher', { stars: 5 })).s, 404, 'المعالج لا يقيّم');
+  assert.equal((await call('POST', `/api/appointments/${apt.id}/rating`, 'tPat', { stars: 6 })).s, 400);
+  assert.equal((await call('POST', `/api/appointments/${apt.id}/rating`, 'tPat', { stars: 4, note: 'ممتاز' })).s, 200);
+  assert.equal((await call('POST', `/api/appointments/${apt.id}/rating`, 'tPat', { stars: 5, note: 'ممتاز جداً' })).s, 200, 'تعديل التقييم');
+  const mine = (await call('GET', '/api/appointments', 'tPat')).j.find((x) => x.id === apt.id);
+  assert.equal(mine.rated, true); assert.equal(mine.stars, undefined);
+  const theirs = (await call('GET', '/api/appointments', 'tTher')).j.find((x) => x.id === apt.id);
+  assert.equal(theirs.rated, undefined); assert.equal(theirs.stars, undefined); assert.equal(JSON.stringify(theirs).includes('ممتاز'), false, 'المعالج لا يرى التقييم');
+  assert.equal((await call('GET', '/api/admin/appointments', 'tPat')).s, 403);
+  const adm = (await call('GET', '/api/admin/appointments', 'tAdmin')).j.find((x) => x.id === apt.id);
+  assert.equal(adm.stars, 5); assert.equal(adm.ratingNote, 'ممتاز جداً'); assert.ok(adm.endedAt);
+});

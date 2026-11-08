@@ -213,7 +213,8 @@ class AppointmentsAdminScreen extends StatelessWidget {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('${a['therapist'] ?? ''} ← ${a['patient'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w800)),
                   Text(day(a['start']), style: const TextStyle(color: C.grey)),
-                  Text('${a['status'] == 'booked' ? 'محجوز' : 'ملغى'} • ${dzd(a['priceDzd'])} • ${a['paid'] == true ? 'مدفوع' : 'غير مدفوع'}'),
+                  Text('${a['status'] != 'booked' ? 'ملغى' : (a['endedAt'] != null ? 'انتهت' : 'محجوز')} • ${dzd(a['priceDzd'])} • ${a['paid'] == true ? 'مدفوع' : 'غير مدفوع'}'),
+                  if (a['stars'] != null) Text('تقييم المريض: ${'★' * (a['stars'] as int)}${'☆' * (5 - (a['stars'] as int))}${(a['ratingNote'] ?? '').toString().isEmpty ? '' : ' — ${a['ratingNote']}'}', style: const TextStyle(color: Colors.orange)),
                 ]),
               ),
           ]);

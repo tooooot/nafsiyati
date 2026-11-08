@@ -33,7 +33,7 @@ class PatientHome extends StatelessWidget {
           future: Api.get('/appointments'),
           builder: (c, s) {
             final list = s.data is List ? [for (final j in s.data as List) Appointment.fromJson(j)] : <Appointment>[];
-            final next = list.where((a) => a.status == 'booked' && a.end.isAfter(DateTime.now().toUtc())).toList()..sort((a, b) => a.start.compareTo(b.start));
+            final next = list.where((a) => a.status == 'booked' && a.endedAt == null && a.end.isAfter(DateTime.now().toUtc())).toList()..sort((a, b) => a.start.compareTo(b.start));
             final a = next.isEmpty ? null : next.first;
             return Container(
               padding: const EdgeInsets.all(18),

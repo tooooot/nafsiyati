@@ -14,7 +14,7 @@ class CallScreen extends StatefulWidget {
 class _CallScreenState extends State<CallScreen> {
   final room = Room();
   String? error;
-  bool mic = true, cam = true;
+  bool mic = true, cam = true, _wasConnected = false;
 
   @override
   void initState() {
@@ -27,6 +27,7 @@ class _CallScreenState extends State<CallScreen> {
     try {
       final t = await widget.connect();
       await room.connect(t.url, t.token, roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true));
+      _wasConnected = true;
       await room.localParticipant?.setMicrophoneEnabled(true);
       await room.localParticipant?.setCameraEnabled(true);
     } catch (e) {
@@ -87,7 +88,7 @@ class _CallScreenState extends State<CallScreen> {
               const SizedBox(width: 18),
               _btn(cam ? Icons.videocam : Icons.videocam_off, cam ? 'الكاميرا' : 'متوقفة', () async { cam = !cam; await room.localParticipant?.setCameraEnabled(cam); setState(() {}); }, off: !cam),
               const SizedBox(width: 18),
-              _btn(Icons.call_end, 'إنهاء', () => Navigator.pop(context), red: true),
+              _btn(Icons.call_end, 'إنهاء', () => Navigator.pop(context, _wasConnected), red: true),
             ]),
           ),
         ]),
