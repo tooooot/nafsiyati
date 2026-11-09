@@ -124,9 +124,12 @@ test('نهاية الجلسة والتقييم: المريض يقيّم والإ
   assert.ok(apt.id);
   assert.equal((await call('POST', `/api/appointments/${apt.id}/rating`, 'tPat', { stars: 5 })).s, 409, 'لا تقييم قبل الانتهاء');
   assert.equal((await call('POST', `/api/appointments/${apt.id}/end`, 'tPat2')).s, 404, 'غريب لا ينهي');
-  const ended = await call('POST', `/api/appointments/${apt.id}/end`, 'tTher');
+  assert.equal((await call('POST', `/api/appointments/${apt.id}/end`, 'tTher', { withOther: false })).s, 409, 'وحده: لا إنهاء مبكر');
+  assert.equal((await call('POST', `/api/appointments/${apt.id}/end`, 'tTher')).s, 409, 'بلا إشارة: كوحده');
+  const ended = await call('POST', `/api/appointments/${apt.id}/end`, 'tTher', { withOther: true });
   assert.equal(ended.s, 200); assert.ok(ended.j.endedAt);
-  assert.equal((await call('POST', `/api/appointments/${apt.id}/end`, 'tPat')).j.endedAt, ended.j.endedAt, 'الإنهاء متكرر بلا تغيير');
+  assert.equal((await call('POST', `/api/appointments/${apt.id}/end`, 'tPat', { withOther: true })).j.endedAt, ended.j.endedAt, 'الإنهاء متكرر بلا تغيير');
+  assert.equal((await call('POST', `/api/appointments/${apt.id}/video-token`, 'tPat')).s, 409, 'لا دخول بعد الانتهاء');
   assert.equal((await call('POST', `/api/appointments/${apt.id}/rating`, 'tTher', { stars: 5 })).s, 404, 'المعالج لا يقيّم');
   assert.equal((await call('POST', `/api/appointments/${apt.id}/rating`, 'tPat', { stars: 6 })).s, 400);
   assert.equal((await call('POST', `/api/appointments/${apt.id}/rating`, 'tPat', { stars: 4, note: 'ممتاز' })).s, 200);

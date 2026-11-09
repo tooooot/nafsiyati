@@ -14,12 +14,15 @@ class CallScreen extends StatefulWidget {
 class _CallScreenState extends State<CallScreen> {
   final room = Room();
   String? error;
-  bool mic = true, cam = true, _wasConnected = false;
+  bool mic = true, cam = true, _otherSeen = false, _asking = false;
 
   @override
   void initState() {
     super.initState();
-    room.addListener(() => mounted ? setState(() {}) : null);
+    room.addListener(() {
+      if (room.remoteParticipants.isNotEmpty) _otherSeen = true;
+      if (mounted) setState(() {});
+    });
     _join();
   }
 
@@ -27,12 +30,33 @@ class _CallScreenState extends State<CallScreen> {
     try {
       final t = await widget.connect();
       await room.connect(t.url, t.token, roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true));
-      _wasConnected = true;
       await room.localParticipant?.setMicrophoneEnabled(true);
       await room.localParticipant?.setCameraEnabled(true);
     } catch (e) {
       if (mounted) setState(() => error = '$e');
     }
+  }
+
+  /// الخروج: «مغادرة مؤقتة» (تعود لاحقاً) أو «إنهاء الجلسة» (تُسجَّل منتهية) أو متابعة. زر الرجوع في أندرويد يمرّ بالسؤال نفسه.
+  Future<void> _ask() async {
+    if (_asking) return;
+    _asking = true;
+    final r = await showDialog<String>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('مغادرة الجلسة'),
+        content: const Text('المغادرة المؤقتة تسمح لك بالعودة قبل انتهاء الوقت. إنهاء الجلسة يغلقها نهائياً ويفتح التقييم والملاحظات.'),
+        actionsOverflowDirection: VerticalDirection.down,
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('متابعة الجلسة')),
+          TextButton(onPressed: () => Navigator.pop(d, 'leave'), child: const Text('مغادرة مؤقتة')),
+          TextButton(onPressed: () => Navigator.pop(d, 'end'), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('إنهاء الجلسة')),
+        ],
+      ),
+    );
+    _asking = false;
+    if (r == null || !mounted) return;
+    Navigator.pop(context, r == 'leave' ? 'leave' : (_otherSeen ? 'end_with' : 'end_alone'));
   }
 
   /// حالة الاتصال الصريحة (تتحدّث مع كل تغيّر في الغرفة).
@@ -66,14 +90,18 @@ class _CallScreenState extends State<CallScreen> {
   Widget build(BuildContext context) {
     final remote = room.remoteParticipants.values.isEmpty ? null : room.remoteParticipants.values.first;
     final rv = _video(remote), lv = _video(room.localParticipant);
-    return Scaffold(
+    final gone = _otherSeen && remote == null;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) { if (!didPop) _ask(); },
+      child: Scaffold(
       backgroundColor: const Color(0xFF101614),
       body: SafeArea(
         child: Stack(children: [
           Positioned.fill(
             child: rv != null
                 ? VideoTrackRenderer(rv)
-                : Center(child: Text(error ?? (remote == null ? 'بانتظار الطرف الآخر…' : 'الكاميرا مغلقة'), style: const TextStyle(color: Colors.white70, fontSize: 16), textAlign: TextAlign.center)),
+                : Center(child: Text(error ?? (gone ? 'غادر الطرف الآخر الجلسة.\nيمكنك انتظار عودته أو إنهاء الجلسة.' : (remote == null ? 'بانتظار الطرف الآخر…' : 'الكاميرا مغلقة')), style: const TextStyle(color: Colors.white70, fontSize: 16), textAlign: TextAlign.center)),
           ),
           if (lv != null)
             Positioned(
@@ -88,10 +116,11 @@ class _CallScreenState extends State<CallScreen> {
               const SizedBox(width: 18),
               _btn(cam ? Icons.videocam : Icons.videocam_off, cam ? 'الكاميرا' : 'متوقفة', () async { cam = !cam; await room.localParticipant?.setCameraEnabled(cam); setState(() {}); }, off: !cam),
               const SizedBox(width: 18),
-              _btn(Icons.call_end, 'إنهاء', () => Navigator.pop(context, _wasConnected), red: true),
+              _btn(Icons.call_end, gone ? 'إنهاء الجلسة' : 'إنهاء', _ask, red: true),
             ]),
           ),
         ]),
+      ),
       ),
     );
   }

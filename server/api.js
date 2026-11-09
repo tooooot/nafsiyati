@@ -66,6 +66,8 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
     const now = new Date().toISOString();
     run("insert or ignore into therapists values(?,?,?,?,?,?,?,?, 'verified', ?)", RV.therapist, 'د. معالج المراجعة', 'أخصائي نفسي', 'حساب مخصص لمراجعي المتاجر.', JSON.stringify(['القلق']), JSON.stringify(['العربية']), 3000, 'REVIEW', now);
     const have = q('select count(*) n from slots where therapist_id=? and start>?', RV.therapist, now).n;
+    // موعد «حيّ» متجدد للمراجعين: يبدأ بعد ~3 دقائق كلما خلت الساحة، ليرى المراجع الفيديو وشاشة الختام دون انتظار
+    if (!q('select 1 x from slots where therapist_id=? and booked=0 and start>? and start<?', RV.therapist, now, new Date(Date.now() + 30 * 60e3).toISOString())) { const d = new Date(Date.now() + 3 * 60e3); d.setUTCSeconds(0, 0); run('insert or ignore into slots(id,therapist_id,start,minutes) values(?,?,?,50)', uid(), RV.therapist, d.toISOString()); }
     for (let i = have; i < 6; i++) { const d = new Date(Date.now() + (1 + i) * 86400e3); d.setUTCMinutes(0, 0, 0); run('insert or ignore into slots(id,therapist_id,start,minutes) values(?,?,?,50)', uid(), RV.therapist, d.toISOString()); }
   };
   R('POST', '/api/auth/review', async (c) => {
@@ -83,10 +85,11 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
   R('GET', '/api/health', async () => ({ ok: 1 }));
 
   R('GET', '/api/therapists', async (c) => {
-    const now = iso();
+    const now = iso(); if (review && c.user && c.user.id === RV.patient) rvSeed();
     return all("select * from therapists where status='verified' and (user_id!=? or ?) order by name", RV.therapist, c.user && c.user.id === RV.patient ? 1 : 0).map((t) => ({ ...th(t), slots: all('select id,start,minutes from slots where therapist_id=? and booked=0 and start>? order by start limit 6', t.user_id, now) }));
   });
   R('GET', '/api/therapists/:id', async (c) => {
+    if (review && c.user && c.user.id === RV.patient) rvSeed();
     const t = q("select * from therapists where user_id=? and status='verified'", c.p.id); if (!t || (t.user_id === RV.therapist && !(c.user && c.user.id === RV.patient))) throw E(404, 'غير موجود');
     return { ...th(t), slots: all('select id,start,minutes from slots where therapist_id=? and booked=0 and start>? order by start limit 60', t.user_id, iso()) };
   });
@@ -186,7 +189,12 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
     c.need(); const a = q('select * from appointments where id=?', c.p.id);
     if (!a || (a.patient_id !== c.user.id && a.therapist_id !== c.user.id)) throw E(404, 'غير موجود');
     if (a.status !== 'booked') throw E(409, 'الموعد غير فعّال');
-    if (Date.now() < new Date(a.start).getTime() - 10 * 60e3) throw E(425, 'الجلسة لم تبدأ بعد');
+    // حماية من الإنهاء الخاطئ: من يكون وحده (الطرف الآخر لم ينضم) لا ينهي قبل مرور 15 دقيقة على الموعد؛ يغادر ويعود. حسابا المراجعة مستثنيان.
+    const isRv = Object.values(RV).includes(c.user.id), withOther = c.body.withOther === true;
+    if (!isRv && !a.ended_at) {
+      if (Date.now() < new Date(a.start).getTime() - 10 * 60e3) throw E(425, 'الجلسة لم تبدأ بعد');
+      if (!withOther && Date.now() < new Date(a.start).getTime() + 15 * 60e3) throw E(409, 'الطرف الآخر لم ينضم بعد. غادر مؤقتاً وعُد، أو انتظر.');
+    }
     if (!a.ended_at) run('update appointments set ended_at=? where id=?', new Date().toISOString(), a.id);
     return aptOut(q('select * from appointments where id=?', a.id), c.user.id);
   });
@@ -206,6 +214,7 @@ function createApp({ dbPath = ':memory:', getUser, lk, social, siteUrl = 'https:
     c.need(); const a = q('select * from appointments where id=?', c.p.id);
     if (!a || (a.patient_id !== c.user.id && a.therapist_id !== c.user.id)) throw E(404, 'غير موجود');
     if (a.status !== 'booked') throw E(409, 'الموعد غير فعّال');
+    if (a.ended_at) throw E(409, 'انتهت هذه الجلسة');
     const st = new Date(a.start).getTime(), now = Date.now();
     if (now < st - 10 * 60e3) throw E(425, 'الجلسة لم تبدأ بعد، يمكن الدخول قبلها بعشر دقائق');
     if (now > st + a.minutes * 60e3 + 10 * 60e3) throw E(410, 'انتهى وقت الجلسة');

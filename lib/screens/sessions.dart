@@ -27,19 +27,21 @@ class _SessionsScreenState extends State<SessionsScreen> {
 
   Future<void> _join(Appointment a) async {
     try {
-      final ended = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => CallScreen(connect: () async {
+      final res = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => CallScreen(connect: () async {
         final r = await Api.post('/appointments/${a.id}/video-token');
         return (url: '${r['url']}', token: '${r['token']}');
       })));
       if (!mounted) return;
-      if (ended == true) {
+      if (res == 'leave') {
+        _snack('غادرتَ الجلسة مؤقتاً. يمكنك العودة من «جلساتي» قبل انتهاء الوقت.');
+      } else if (res == 'end_with' || res == 'end_alone') {
         try {
-          await Api.post('/appointments/${a.id}/end');
+          await Api.post('/appointments/${a.id}/end', {'withOther': res == 'end_with'});
+          if (!mounted) return;
+          await Navigator.push(context, MaterialPageRoute(builder: (_) => EndSessionScreen(a, asTherapist: widget.asTherapist)));
         } on ApiError catch (e) {
           _snack(e.message);
         }
-        if (!mounted) return;
-        await Navigator.push(context, MaterialPageRoute(builder: (_) => EndSessionScreen(a, asTherapist: widget.asTherapist)));
       }
       await _refresh();
     } on ApiError catch (e) {
