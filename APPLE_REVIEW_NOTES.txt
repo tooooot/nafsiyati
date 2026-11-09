@@ -6,12 +6,14 @@ Public users sign in with Sign in with Apple (or Google). For review:
 a. On the welcome screen choose the tab "مريض" (Patient) or "معالج" (Therapist), tap "ابدأ".
 b. On the sign-in screen tap the lotus logo 5 times quickly; the dialog "دخول المراجعة" opens.
 c. Enter reviewer@wardyat.net / sehhati2026, tap "دخول".
-Patient: tab "المعالجون" > pick the review therapist > pick a slot > "احجز الجلسة" > "جلساتي". Past sessions appear under "الجلسات السابقة".
-Therapist: manage available slots, sessions and private notes, profile and license.
-Video sessions open 10 minutes before the appointment (camera + microphone permission needed). Sessions are NOT recorded or stored.
+Patient: tab "المعالجون" > pick the review therapist > pick the FIRST slot (a live demo slot that always starts about 3 minutes after you open the list; a new one is created automatically whenever none is open) > "احجز الجلسة" > "جلساتي". Past sessions appear under "الجلسات السابقة".
+Video session: in "جلساتي" the button "ادخل الجلسة" becomes active 10 minutes before the start time, so the live demo slot can be joined immediately after booking (camera + microphone permission needed). The reviewer can test alone: the other side shows "بانتظار الطرف الآخر".
+End of session: tap the red button, then choose "مغادرة مؤقتة" (leave temporarily, can rejoin) or "إنهاء الجلسة" (end it). Ending opens the closing screen "انتهت الجلسة": the patient can rate the session (1-5 stars + optional note; ratings are visible only to platform admins, never to the therapist) and sees the fee and a link to "محفظتي" (payment status, confirmed manually by the admin). The session then moves to "الجلسات السابقة". For real users, someone who is alone in the call cannot end the session until 15 minutes after its start time (to prevent accidental ending); review accounts are exempt.
+Therapist: manage available slots, sessions and private notes, profile and license. After ending a session the therapist sees the same closing screen with a shortcut to the private notes.
+Video sessions are NOT recorded or stored.
 ACCOUNT DELETION: "حسابي" > "حذف الحساب" deletes the account and its data (also described at https://nafsiyati.wardyat.net/support/).
 USER-GENERATED CONTENT: none is shared between users (no feed/chat/public profiles). Therapist notes are private to the therapist. No reporting/blocking mechanism is therefore needed.
-PAID CONTENT: no in-app purchases. Session fees are settled outside the app (manual confirmation by the platform admin); no payment processor is integrated.
+PAID CONTENT: no in-app purchases (currently; payment is handled outside the app). Session fees are settled outside the app (manual confirmation by the platform admin); no payment processor is integrated.
 
 3) EXTERNAL SERVICES
 - Own server (nafsiyati.wardyat.net, Node.js) for accounts, therapists, bookings.
