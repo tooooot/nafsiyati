@@ -10,7 +10,7 @@ const users = {
 };
 let base, srv;
 test.before(async () => {
-  const { server } = createApp({ getUser: async (t) => users[t] || null, lk: { key: 'k', secret: 's', url: 'wss://x', demo: true }, social: async (prov, t) => (t === 'good-token-good-token-1' ? { token: 'sess-' + prov, user: { id: 'u' } } : null) });
+  const { server } = createApp({ maxPerMin: 1000, getUser: async (t) => users[t] || null, lk: { key: 'k', secret: 's', url: 'wss://x', demo: true }, social: async (prov, t) => (t === 'good-token-good-token-1' ? { token: 'sess-' + prov, user: { id: 'u' } } : null) });
   srv = server; await new Promise((r) => server.listen(0, r)); base = 'http://127.0.0.1:' + server.address().port;
 });
 test.after(() => srv.close());
